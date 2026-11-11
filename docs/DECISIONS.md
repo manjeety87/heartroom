@@ -22,3 +22,10 @@ Append-only. One line per decision: date, the decision, and the reason. Details 
 | 2026-11-10 | Leaderboard: total wins + win rate, filters. Shared win = 1/k. ≥10 games, ≥3 opponents, pair cap 10/day | Anti-farming |
 | 2026-11-10 | *(Proposed, owner to confirm)* Action logs in Postgres jsonb for 30 days, then nulled | No Redis; Bingo logs are 1–2 KB |
 | 2026-11-10 | Public GitHub repo. Work on `dev`, releases via PR to `main`, commit every working step | Owner's choice; traceability |
+| 2026-11-10 | EGM review fixes (defaults, owner may revise): checkpoint restore = highest seq after a 5 s collection, refused for finished/closed/live rooms, mid-game only with ≥2 humans | Stops the roll-back cheat (a loser resuming an old checkpoint) |
+| 2026-11-10 | Deploys restart immediately (no drain); players resume from checkpoints | Fly caps kill_timeout at 300 s and there is one instance |
+| 2026-11-10 | LiveKit token TTL 60 s; bans/blocks re-applied on every participant_joined webhook | TTL only limits the first connect |
+| 2026-11-10 | Better Auth keeps the Google email (required for linking); drop photo/name/IP/UA. Guest history merges into an existing account too | Better Auth requires an email column |
+| 2026-11-10 | Expired seat = server auto-plays it. >2 auto turns → unranked. No human connected for 3 turns → abandoned | Stops self-finishing ranked games |
+| 2026-11-10 | 18+ asked once, on the first join screen | One place, consistent with CUJ 2 |
+| 2026-11-10 | Phases split: 0 engine only, 2a online (Option C), 2b reconnect/host/PWA, 2c checkpoint (Option A) | Smaller steps for one developer |

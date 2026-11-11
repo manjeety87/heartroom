@@ -49,8 +49,8 @@ room voice built on LiveKit, and optional accounts that keep history and feed th
 
 The first release succeeds when all of these hold:
 
-*   **G1: Join fast.** From a shared link, a new guest is in the room in **≤2 taps** (nickname, then
-    Join), with no account and no install, on a mid-range Android phone in Chrome and on iPhone Safari.
+*   **G1: Join fast.** From a shared link, a first-time guest is in the room in **≤3 actions** (accept
+    or type a nickname, tick 18+, tap Join), and a returning guest in **1 tap**, with no account and no install, on a mid-range Android phone in Chrome and on iPhone Safari.
 *   **G2: Bingo 1–25 for 2–6 players**, with the agreed rules: shared win, first turn alternating
     between games, 15 s Fast timer by default (Chill and Away-only selectable), 30 s setup, end-of-game
     reveal of every grid, and one-tap rematch in the same room. **Custom grids:** the host can pick
@@ -74,7 +74,8 @@ The first release succeeds when all of these hold:
     the room, lock room, new code, and knock-to-join once a game has started. Spectators join with
     voice disconnected and opt in to listening or talking.
 *   **G9: Optional accounts.** Google sign-in. Guests keep their history when they sign up. Users declare
-    they are 18+. We store only the Google ID and the nickname.
+    they are 18+. We store the Google ID, the Google email (Better Auth requires it for linking) and
+    the nickname. No photo, no real name, no IP or user-agent.
 *   **G10: Fair leaderboards.** Total wins and win rate per game, filtered by game, time and mode.
     Bot games never count. A shared win counts as 1/k for ranking. Players appear only after ≥10
     ranked games against ≥3 different opponents.
@@ -111,7 +112,8 @@ The first release succeeds when all of these hold:
 *   **Q4: iOS Safari voice.** Check on a real iPhone how voice behaves after the tab goes to the
     background and comes back (auto re-join or a "Tap to reconnect voice" button).
 *   **Q5: Where the game server runs.** Fly.io or Railway (both about $2–5/month). The choice depends on
-    WebSocket drain support at deploy time and the India-region latency.
+    India-region latency and price. (Drain support no longer matters: deploys restart immediately
+    and players resume from checkpoints.)
 
 ## Critical User Journeys (CUJs)
 
@@ -126,7 +128,8 @@ The first release succeeds when all of these hold:
 ### CUJ 2: Join from a link in two taps
 
 *   **Given:** Kabir taps Riya's link in a WhatsApp group. The room has 3 of 6 seats taken.
-*   **When:** He keeps or edits the suggested nickname and taps **Join Room**.
+*   **When:** He keeps or edits the suggested nickname, ticks "I'm 18 or older" (first visit only)
+    and taps **Join Room**.
 *   **Then:** He sits in seat 4 with his mic off, sees who is there, and nobody needed an account. If
     the seats had been full, the button would have read **Join as Spectator**.
 
@@ -268,6 +271,7 @@ interface GameModule<Config, State, Action, View> {
   autoAction(state: State, seat: number, rng: Rng): Action;   // what the server plays on timeout
   view(state: State, viewer: Viewer): View;                   // the ONLY way state leaves the room
   result(state: State): null | { winners: number[]; placements: number[]; details: Json };
+  perturbHidden(state: State, viewer: Viewer, rng: Rng): State; // test-only: changes everything this viewer must not know
 }
 ```
 
@@ -314,7 +318,7 @@ host command ─────────────▶ enqueue ──▶       
 * **Joining.** Joining by code is open in the lobby. Once a game has started, a newcomer goes to
   `knocks[]` and the host accepts them as a spectator or into a free seat. `locked` refuses every
   join, and anyone in `bans` is refused.
-* **Codes.** 6 characters from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (31 characters, ≈887M codes). The
+* **Codes.** 6 characters from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (32 characters, 32⁶ ≈ 1.07B codes). The
   share link carries a separate 128-bit `linkToken`. Typing the code into the join field is rate-limited
   to 10 attempts per minute per IP. A code is freed when its room closes.
 * **First turn rotation.** `startSeatRotation` moves to the next *occupied* seat after every game.
@@ -335,8 +339,9 @@ Open Question Q2 checks this approach against the current Colyseus release in a 
 ### Voice (VoiceAdapter in the game server)
 
 * The browser asks the game server for a voice token by tapping "Join voice". The server mints a
-  LiveKit token with: `room = internal room ID`, `identity = userId`, `ttl = 10 min` (renewed over
-  the WebSocket), `canSubscribe = true`, `canPublish = true` only if the person is allowed to speak,
+  LiveKit token with: `room = internal room ID`, `identity = userId`, `ttl = 60 s` (the TTL only
+  limits the *first* connection, and LiveKit refreshes the token of a connected participant itself,
+  so we do no renewal of our own), `canSubscribe = true`, `canPublish = true` only if the person is allowed to speak,
   `canPublishSources = ["microphone"]`, and `canPublishData = false` and
   `canUpdateOwnMetadata = false`, so voice can never carry game messages. Every grant flag is set
   explicitly.
@@ -345,8 +350,14 @@ Open Question Q2 checks this approach against the current Colyseus release in a 
   also has `canPublish = false`. Lifting the block flips it back, and the person still unmutes
   themselves. **Kick** = remove from the Colyseus room, then LiveKit `RemoveParticipant`, then add
   to `bans`. The browser never holds `roomAdmin`.
+* **Enforce on every join.** A token still within its TTL could be reused to rejoin, so on each
+  `participant_joined` webhook the server checks room state: a banned identity → `RemoveParticipant`,
+  and a blocked identity → `UpdateParticipant(canPublish: false)`. This, not the token alone, is what
+  makes kick and block-mic hold.
 * **Metering.** LiveKit webhooks (`participant_joined` / `participant_left`) go to the game server.
-  It writes each session to `voice_usage` and keeps a month-to-date total in memory. When the total
+  It writes each session to `voice_usage` and keeps a month-to-date total in memory. On boot the
+  total is rebuilt with `SUM(minutes)` for the current month, and sessions left open by a crash are
+  closed at `joined_at + 3 h` or at the next webhook, whichever comes first. When the total
   passes `VOICE_MONTHLY_CAP_MINUTES`, new token requests return `voice_unavailable`, the UI shows
   "Voice is resting this month", and the game continues.
 * **Idle disconnect.** The client leaves voice after 3 minutes with no one else in voice. The room
@@ -358,8 +369,17 @@ Open Question Q2 checks this approach against the current Colyseus release in a 
 * **Better Auth** with the anonymous plugin (every guest is a real user row with `isAnonymous`),
   Google OAuth, and the JWT plugin. On sign-in, the anonymous user is linked to the Google user and
   its matches move over (the plugin's `onLinkAccount` hook updates `match_players.user_id`).
-* We store only Google `sub` and nickname, and request no email or profile-photo scopes beyond what
-  sign-in needs. An 18+ checkbox is required before the first game, with `ageConfirmedAt` saved on the user.
+* **What we store (corrected after review).** Better Auth requires an email column: anonymous users
+  get its placeholder `{id}@anonymous.placeholder.invalid`, and the Google profile mapper stores the
+  Google email (needed by Better Auth to link accounts) but **drops `image` and `name`** (we use the
+  nickname). Session IP and user-agent capture is switched off. The privacy notice says exactly this.
+* **Linking a guest.** In `onLinkAccount({ anonymousUser, newUser })`, one transaction moves the
+  guest's `match_players` rows to `newUser.id`, **including when `newUser` is an existing account**
+  (the guest's games are merged into it). The anonymous user is deleted only after that.
+  `match_players.user_id` uses `ON DELETE RESTRICT`, so history can never be lost by cascade.
+* **18+ is asked once, at the first join** (one checkbox on the nickname screen, remembered on the
+  user as `ageConfirmedAt`). That screen therefore has a nickname field, the 18+ checkbox and the
+  Join button. G1's "≤2 taps" counts the first visit as 3 actions and later visits as 1.
 * The game server checks JWTs against the web app's JWKS endpoint (cached). No shared cookie is
   needed across the two domains.
 * Nicknames go through a profanity filter (English + Hinglish list) and a list of reserved words
@@ -392,9 +412,15 @@ Queries over `match_players` joined with `matches`, filtered by `game_id`, a tim
 * **Total wins** = `sum(win_share)` over ranked matches.
 * **Win rate** = `sum(win_share) / count(*)`.
 * **Eligibility:** ≥10 ranked matches and ≥3 distinct opponents in the window.
-* **Pair cap:** a ranked match counts only if this pair of players has played ≤10 ranked matches
-  together that day. This is checked when the match is written: if the cap is exceeded, `ranked` is
-  set to false.
+* **Pair cap:** a match is ranked only if **every pair** of signed-in players in it has played
+  ≤10 ranked matches together that day (Asia/Kolkata calendar day). This is checked when the match
+  is written: if any pair is over the cap, `ranked` is set to false for the whole match.
+* **"Mode" filter** = player-count band: `2 players` · `3–4 players` · `5–6 players`. Bingo
+  leaderboards use classic config only.
+* **`result = draw`** is used for a Word Guess tie (same guesses, same time) and for nobody else.
+  Shared Bingo wins are `win` with `win_share = 1/k`.
+* **Admin check:** the JWT carries no admin claim. The game server's `/internal/*` routes and the web
+  admin APIs look up `user.isAdmin` in the database on every request.
 
 These run as plain SQL with indexes on `(game_id, ended_at)` and `(user_id)`. Materialised views
 are added only if a query gets slow.
@@ -412,10 +438,16 @@ are added only if a query gets slow.
 
 ### Deploys and crashes
 
-* On `SIGTERM` the game server stops accepting new rooms (`/healthz` reports draining). Live rooms
-  play on for up to 10 minutes. Any room still running after that is closed with a `restarting`
-  code, and its clients reconnect to the new instance and `resume` from their latest checkpoint
-  (Option A below), so a deploy does not end a game. Lobby rooms are resumed the same way.
+* **Deploys (corrected after review).** There is one instance, and Fly caps `kill_timeout` at 300 s,
+  so there is no drain window. On `SIGTERM` the server immediately closes every room with code
+  `restarting`. Clients wait 2–5 s, reconnect to the new process and `resume` from their checkpoint
+  (Option A). The deploy strategy is Fly `immediate` (or Railway's default), and players see a few
+  seconds of "Reconnecting…".
+* **Seats nobody is playing.** If a seat's 60 s reconnection window runs out mid-game, that seat
+  stays in the game and the server auto-plays it on its turns (`autoAction`). A match is
+  **unranked** if any seat was auto-played on more than 2 of its turns. If **no human is
+  connected** for 3 consecutive turns, the match ends with `status = abandoned` (no winner, not
+  ranked) and the room returns to the lobby.
 * **Crash recovery: Option A (encrypted client-held checkpoint) + client outbox. Decided by author
   2026-11-10.** Options B and C below are kept for the record.
 
@@ -429,17 +461,31 @@ This covers network drops, but not a server crash, because after a crash the roo
 
 #### Option A: encrypted checkpoint held by the players' browsers
 
-* After every action the server sends each client one extra field: `checkpoint` =
-  AES-256-GCM(serverKey, `{roomId, seq, moduleVersion, config, seed, state, seats, hostId}`).
+* **Sealing.** After every action the room seals **one** blob and sends the same blob to every
+  client: `checkpoint = AES-256-GCM(CHECKPOINT_KEY, nonce = 96 random bits, snapshot)`.
+  `snapshot` = the **entire room state** from "Room state" above except live sockets: `roomId`,
+  `matchId`, `bootId`, `seq`, `issuedAt`, `moduleVersion`, `code`, `linkToken`, `hostId`, `locked`,
+  `seats` (including block-mic flags), `spectators`, `bans`, `startSeatRotation`, `phase`, and
+  `current` (config, state, seed, `actions`, `turnSeq`, deadline). A test checks that
+  `restore(snapshot)` followed by `view()` gives byte-identical views to before the crash.
 * The browser cannot read it (it is encrypted, so no grid, secret word or seed leaks) and cannot
-  change it (GCM rejects any edit). It saves the latest one in `sessionStorage`, about 1–3 KB for Bingo.
-* After a crash or redeploy, clients reconnect to the new server with `resume(roomCode, checkpoint)`.
-  The server decrypts every checkpoint it receives and keeps the one with the highest `seq`. It
-  rebuilds the room, restarts the timer from the stored deadline, and carries on. Moves in flight
-  come from the outbox.
-* Rules: a checkpoint expires after 15 minutes (`issuedAt` inside it). `serverKey` comes from an
-  environment secret shared by every server instance, and key rotation keeps the previous key for
-  one day. A room is restored only once, so a second resume with an older checkpoint is ignored.
+  change it (GCM rejects any edit). It keeps the latest one in `sessionStorage`, about 2–4 KB for Bingo.
+* **Restoring safely (fixes the roll-back attack found in review).** A losing player could otherwise
+  keep an old checkpoint and resume from before the opponent's winning call. So the server:
+  1. Refuses a checkpoint whose `bootId` equals its own (the room is live, so nothing to resume),
+     whose `matchId` already exists in `matches` (the game finished or was abandoned), or whose room
+     has a `closed` event in `room_events` (closed by the host or an admin).
+  2. Accepts a checkpoint only from a `userId` seated in it, and collects resumes for that room for
+     **5 s** (or until every seated user has sent one).
+  3. Restores from the checkpoint with the **highest `seq`** across all players. One player's
+     old copy cannot win over a newer copy held by anyone else.
+  4. Restores mid-game only if **≥2 seated humans** resumed. With fewer, it restores the room to the
+     **lobby** (seats, host, bans kept) and records the match as abandoned.
+  5. Restores each room once. Later resumes join the restored room normally.
+* **Expiry and keys.** A checkpoint expires 15 minutes after `issuedAt`, but the room re-seals one
+  every 5 minutes even without actions, so idle lobbies and Chill games stay restorable.
+  `CHECKPOINT_KEY` is a 32-byte environment secret, and rotation keeps `CHECKPOINT_KEY_PREVIOUS` for
+  one day.
 * **Pros:** costs nothing (no Redis, no extra database writes) and works across instances.
   This is the same idea as encrypted cookie sessions on the web: the server's state is stored on the
   client, sealed with a key only the server holds.
@@ -609,7 +655,7 @@ BingoConfig = {
         no `roomAdmin` in any browser.
     *   Admin is a database flag, checked on the server for pages, APIs and the game server's internal
         routes. Every admin action is audit-logged.
-    *   Data minimisation: Google `sub` + nickname, 18+ declared, voice never recorded, action logs
+    *   Data minimisation: Google `sub` + email + nickname (no photo, name, IP or user-agent), 18+ declared, voice never recorded, action logs
         removed after 30 days.
     *   Secrets (`AUTH_SECRET`, `CHECKPOINT_KEY`, `LIVEKIT_API_SECRET`, `DATABASE_URL`) live only in
         hosting environment variables and are never committed.
@@ -655,6 +701,20 @@ BingoConfig = {
 Built in phases. Each phase ends with something the author can play, and the next phase starts only
 after it passes its checks.
 
+**Phase order (revised after the EGM review: smaller steps for one developer)**
+
+| Phase | Contents (file numbers below) | Crash handling |
+|---|---|---|
+| 0 | Workspace + engine only: #1–#7. The design tokens CSS from #8 is added here, but each component is built when a screen first needs it | — |
+| 1 | Bingo rules, bot, UI, vs Computer page: #9–#14 (no PWA yet) | — |
+| 2a | Auth (anonymous + JWT), create/join by code, play online, results, rematch: #15–#18, #20–#23 | Option C (game lost, "start a new game") |
+| 2b | Reconnect + outbox, host powers, knocks, rate limits, offline/PWA for vs Computer | Option C |
+| 2c | Checkpoint crash recovery (#19) with the safe-restore rules, then a kill-the-server test | **Option A** |
+| 3 → 7 | as listed below | Option A |
+
+Option A is still the decision. It simply ships as its own step (2c) after online play works, so
+that its threat model gets its own tests.
+
 ### Phase 0: Workspace and shared foundations
 
 #### 1. `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `.gitignore`, `.env.example` (Create)
@@ -686,16 +746,21 @@ after it passes its checks.
 #### 5. `packages/engine/src/replay.ts` + `replay.test.ts` (Create)
 
 *   **Type / Scope**: Library + unit test.
-*   **Proposed Changes**: `replay(module, {config, seed, seats, actions}) → State`. The room uses the same
-    `step()` function, so live play and replay cannot drift apart.
+*   **Proposed Changes**: `step(module, state, entry) → State`, where `entry` is a logged
+    `{seat, action, by: "player" | "server"}`. It runs `validate` then `apply`. `replay(module, {config,
+    seed, seats, actions}) → State` folds `step` over the log. The room, `LocalMatch` (vs Computer)
+    and replay all call the same `step()`, so live play and replay cannot drift apart.
 
 #### 6. `packages/engine/src/testing/view-leak.ts` (Create)
 
 *   **Type / Scope**: Shared test helper.
-*   **Proposed Changes**: `assertNoLeak(module, scenarios, secretsOf)`. It plays random games with a
-    seeded bot and, after every step, serialises `view(state, viewer)` for each spectator and each
-    opponent seat. It fails if any secret (another seat's grid order, a secret word, the seed) appears
-    in it. Every game module's tests must call it.
+*   **Proposed Changes**: `assertNoLeak(module, { scenarios, perturbHidden })`. This is an
+    **indistinguishability test**, not a substring search (substrings cannot work for Bingo, where
+    1–25 appear everywhere). It plays seeded random games, and after every step, for each viewer, it
+    builds a second state where every hidden thing the viewer must not know is changed
+    (`perturbHidden(state, viewer, rng)`: shuffle other seats' grids, replace other players' secret
+    words, change the seed). It then asserts `view(state, viewer)` and `view(perturbed, viewer)` are
+    byte-identical. Every game module must export `perturbHidden` and call this test.
 
 #### 7. `packages/protocol/src/messages.ts` (Create)
 
@@ -745,7 +810,10 @@ after it passes its checks.
 *   **Proposed Changes**: Line counting for N = 3…8. Shared win. Turn order and the alternating first
     seat (skipping empty seats). Rejects: calling out of turn, calling an already-called number, and a
     number outside 1…N². Timeout auto-actions. Replay equality. `assertNoLeak`. The bot never errors
-    across 10k seeded games, and Hard beats Easy more than 60% of the time.
+    across 10k seeded games. Bot strength is measured on a **fixed list of 2,000 seeds** (so the test is
+    deterministic, never flaky): Hard's win rate vs Easy must be at least the value found in a Phase 1
+    simulation minus 3 points. A first simulation decides whether difficulty levels feel different
+    at all in 1–25 Bingo. If they don't, the levels change (e.g. Easy also delays and plays randomly).
 
 #### 13. `packages/games/bingo/src/ui/*` (Create)
 
@@ -759,7 +827,7 @@ after it passes its checks.
 *   **Type / Scope**: Next.js App Router.
 *   **Proposed Changes**: Landing page (Create Room is disabled until Phase 2, "Play vs Computer" works),
     and a vs Computer page that runs the rules + bot locally with a `LocalMatch` driver (the same
-    `step()` from the engine). A PWA manifest + service worker cache this page so it works offline (CUJ 7).
+    `step()` from the engine). Offline support (PWA manifest + service worker, CUJ 7) is added in Phase 2b.
 
 **Phase 1 check:** play vs Computer on a phone at every size and level, with all tests green.
 

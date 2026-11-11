@@ -15,10 +15,10 @@ _Update this file at the end of every working session (any agent, any device)._
 
 ## Next
 
-1. Run a fresh `egm-review` on `docs/design/heartroom-design.md` and resolve its findings.
+1. ~~EGM review~~ done 2026-11-10; all 13 findings fixed in the design doc (see DECISIONS).
 2. Answer the design doc's Open Questions Q1 (pricing), Q2 (Colyseus spike), Q3 (name check).
-3. **Phase 0:** workspace, `packages/engine` (contract, RNG, replay, leak test), `packages/protocol`,
-   `packages/ui` tokens. See "Detailed Implementation Plan → Phase 0" in the design doc.
+3. **Phase 0 (trimmed):** workspace, `packages/engine` (contract, RNG, step/replay, indistinguishability leak test), `packages/protocol`,
+   and the design-token CSS only. See "Phase order (revised)" in the design doc.
 
 ## Phases
 
