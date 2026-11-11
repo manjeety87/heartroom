@@ -1,0 +1,116 @@
+/*
+ * Heartroom design tokens: the single source for colour, type, space, radius, elevation and motion.
+ * Values come from docs/design/design-direction.md ("Last page of the notebook"); change them there
+ * first. Tailwind v4 turns each `--color-*`, `--font-*`, `--text-*`, `--radius-*`, `--shadow-*` and
+ * `--ease-*` into utilities (`bg-paper`, `text-ink`, `rounded-card`, `ease-out`…).
+ *
+ * Dark mode overrides the same variables: it follows the system unless the page sets
+ * `data-theme="light"` or `data-theme="dark"` on <html>.
+ */
+
+@theme {
+  /* Colour (light). Contrast ratios are in design-direction.md. */
+  --color-paper: #f5f7fa;
+  --color-sheet: #ffffff;
+  --color-well: #e3e7ef;
+  --color-ink: #18213a;
+  --color-pencil: #55607a;
+  --color-pen: #2346c8;
+  --color-on-pen: #ffffff;
+  --color-margin: #c42a44;
+  --color-on-margin: #ffffff;
+  --color-highlighter: #ffc93c;
+  --color-on-highlighter: #18213a;
+  --color-cover: #cbe4f2;
+  --color-line: rgb(24 33 58 / 0.1);
+
+  /* Per-game accents: only on that game's card, board header and result screen. */
+  --color-game-bingo: #c42a44;
+  --color-game-word-guess: #ffc93c;
+  --color-game-chalk: #23775a;
+  --color-game-crayon: #f08a3c;
+
+  /* Type. The web app loads the fonts (next/font); these are the family names plus fallbacks. */
+  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Figtree", "Mukta", ui-sans-serif, system-ui, sans-serif;
+
+  --text-caption: 0.8125rem;
+  --text-small: 0.875rem;
+  --text-body: 1rem; /* inputs stay at 16px so iOS does not zoom */
+  --text-title: 1.25rem;
+  --text-h2: 1.5625rem;
+  --text-h1: clamp(1.9375rem, 1.6rem + 1.4vw, 2.4375rem);
+  --text-display: clamp(3rem, 10vw, 7.5rem);
+  --text-display--line-height: 0.95;
+  --text-display--letter-spacing: -0.03em;
+  --text-bingo-cell: clamp(1.375rem, 7vw, 2.125rem);
+  --text-word-tile: clamp(1.5rem, 8vw, 2.25rem);
+
+  /* Space: Tailwind's default 4px step matches the 4px base (4, 8, 12 … 120 = p-1 … p-30). */
+  --spacing-gutter: 16px;
+
+  /* Radius: outer = inner + padding when nesting. */
+  --radius-pill: 999px;
+  --radius-cell: 10px;
+  --radius-tile: 12px;
+  --radius-card: 16px;
+  --radius-sheet: 24px;
+
+  /* Elevation: only floating things (sheet, popover, toast). Surfaces at rest use tone instead. */
+  --shadow-float: 0 0 0 1px rgb(24 33 58 / 0.06), 0 8px 24px -8px rgb(24 33 58 / 0.18);
+
+  /* Motion. Never ease-in, so Tailwind's default ease-in utility is removed. */
+  --ease-in: initial;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-move: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+
+  --duration-press: 120ms;
+  --duration-tooltip: 150ms;
+  --duration-popover: 180ms;
+  --duration-sheet-in: 320ms;
+  --duration-sheet-out: 220ms;
+  --duration-toast: 400ms;
+  --duration-ink-draw: 280ms;
+  --duration-line-strike: 360ms;
+  --duration-reduced-fade: 150ms;
+}
+
+:root {
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --color-paper: #0f1730;
+    --color-sheet: #18223f;
+    --color-well: #222c4a;
+    --color-ink: #e8ecf5;
+    --color-pencil: #9aa6c2;
+    --color-pen: #8fa6ff;
+    --color-on-pen: #0f1730;
+    --color-margin: #ff7a8c;
+    --color-on-margin: #0f1730;
+    --color-cover: #18223f;
+    --color-line: rgb(255 255 255 / 0.08);
+    --shadow-float: 0 0 0 1px rgb(255 255 255 / 0.08);
+  }
+}
+
+/* Same values as the media query above, for an explicit choice that overrides the system. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-paper: #0f1730;
+  --color-sheet: #18223f;
+  --color-well: #222c4a;
+  --color-ink: #e8ecf5;
+  --color-pencil: #9aa6c2;
+  --color-pen: #8fa6ff;
+  --color-on-pen: #0f1730;
+  --color-margin: #ff7a8c;
+  --color-on-margin: #0f1730;
+  --color-cover: #18223f;
+  --color-line: rgb(255 255 255 / 0.08);
+  --shadow-float: 0 0 0 1px rgb(255 255 255 / 0.08);
+}
