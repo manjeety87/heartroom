@@ -18,6 +18,7 @@ games together while you talk.
 | [AGENTS.md](AGENTS.md) | Rules for anyone (human or AI agent) working in this repo |
 | [docs/STATUS.md](docs/STATUS.md) | Current phase and next task |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | Decisions made and why |
+| [docs/SETUP.md](docs/SETUP.md) | New laptop / collaborator setup, recommended agent skills |
 | [docs/design/heartroom-design.md](docs/design/heartroom-design.md) | Full design doc: architecture, phases, file plan |
 | [docs/design/design-direction.md](docs/design/design-direction.md) | Visual design system |
 | [docs/design/concepts-brief.md](docs/design/concepts-brief.md) | Concept + review findings |
