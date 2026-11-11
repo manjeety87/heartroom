@@ -1,0 +1,17 @@
+{
+  "name": "@heartroom/bingo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./ui": "./src/ui/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@heartroom/engine": "workspace:*",
+    "zod": "^4.6.7"
+  }
+}
