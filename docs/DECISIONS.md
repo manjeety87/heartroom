@@ -33,3 +33,10 @@ Append-only. One line per decision: date, the decision, and the reason. Details 
 | 2026-11-10 | *(Proposed, owner to confirm)* JS budgets: landing ≤120 KB gz, room shell ≤170 KB, each game ≤60 KB | Mid-range Android on 4G |
 | 2026-11-10 | Motion stack: CSS/WAAPI + Motion (LazyMotion), hand-built SVG ink; no GSAP/Lottie/Rive/confetti; Web Audio for 3 sounds | Small bundle, notebook brand |
 | 2026-11-10 | Node ≥22.12, ESM, pnpm 12 via corepack | Owner's machines |
+| 2026-11-11 | TypeScript 6.0 (not 7) and ESLint 9 (not 10) | typescript-eslint 8 supports TS <6.1; ESLint 10 needs Node ≥22.13 (owner runs 22.12). Revisit when both move |
+| 2026-11-11 | Vitest `projects` in root `vitest.config.ts` instead of `vitest.workspace.ts` | The workspace file was removed in Vitest 4 |
+| 2026-11-11 | Packages ship TS source with explicit `.ts` import extensions; `@heartroom/engine/testing` is a second entry for test helpers | Works in tsx, Vitest, esbuild and Next; test helpers stay out of runtime imports |
+| 2026-11-11 | Contract clarifications: `Deadline.at` = ms after the current turn began; `State` is plain JSON and never mutated; `RuleError` = `{ code: NOT_YOUR_TURN \| RULE_VIOLATION, reason }` | Rules have no clock; `assertNoLeak` compares canonical JSON; reasons map to UI copy |
+| 2026-11-11 | `assertNoLeak` also fails if `perturbHidden` mutates the state or never changes anything | Otherwise a lazy `perturbHidden` passes and proves nothing |
+| 2026-11-11 | Host commands are a zod discriminated union by `kind` (snake_case); `config` carries `gameId` + opaque config | `target` required exactly where needed; the game's own schema parses config |
+| 2026-11-11 | Types use `type`, not `interface` (lint rule) | Views/results must be assignable to `Json`, which interfaces are not |

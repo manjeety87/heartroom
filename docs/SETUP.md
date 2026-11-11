@@ -8,7 +8,13 @@ cd heartroom
 git switch dev
 ```
 
-Requirements once code exists: Node 22+, pnpm (`corepack enable`), Git.
+Requirements: Node ≥22.12, pnpm 12 (`corepack enable` picks the version pinned in `package.json`), Git.
+
+```bash
+pnpm install
+```
+
+Checks before every commit: `pnpm typecheck`, `pnpm lint`, `pnpm test` (`pnpm test:coverage` for coverage).
 
 ## 2. Agent skills (optional, saves time and tokens)
 
