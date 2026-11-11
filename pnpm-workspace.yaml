@@ -1,0 +1,6 @@
+packages:
+  - apps/*
+  - packages/*
+  - packages/games/*
+minimumReleaseAgeExclude:
+  - prettier@3.10.0
