@@ -32,10 +32,17 @@ export type MatchResult = {
 export type Deadline = {
   readonly seat: number;
   /**
-   * Milliseconds after the current turn began. Rules have no clock, so the room adds its own
-   * turn-start time and plays `autoAction` for `seat` when it passes.
+   * Milliseconds after this deadline's `key` first appeared. Rules have no clock, so the room notes
+   * the time when it first sees a new `key` and plays `autoAction` for `seat` once `at` has passed.
    */
   readonly at: number;
+  /**
+   * Names the clock this deadline belongs to (e.g. "setup", "turn:7"). A new key restarts the clock;
+   * the same key keeps it running, so several seats can share one setup timer.
+   */
+  readonly key: string;
+  /** The clock runs only while `seat` is away (tab hidden or disconnected). */
+  readonly onlyWhenAway?: true;
 };
 
 /**

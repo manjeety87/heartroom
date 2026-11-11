@@ -55,12 +55,8 @@ export default tseslint.config(
   },
   {
     // Engine and game rules are pure: no Node/DOM globals, no clock, no Math.random, no node: imports.
-    files: [
-      "packages/engine/src/**/*.ts",
-      "packages/games/*/src/rules.ts",
-      "packages/games/*/src/rules/**/*.ts",
-    ],
-    ignores: ["**/*.test.ts"],
+    files: ["packages/engine/src/**/*.ts", "packages/games/*/src/**/*.ts"],
+    ignores: ["**/*.test.ts", "packages/games/*/src/ui/**"],
     rules: {
       "no-restricted-globals": ["error", ...PLATFORM_GLOBALS.filter((name) => name !== "crypto")],
       "no-restricted-properties": [

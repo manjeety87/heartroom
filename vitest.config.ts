@@ -3,7 +3,8 @@ import { defineConfig } from "vitest/config";
 // One Vitest run covers every workspace package. (Vitest 4+ replaced vitest.workspace.ts with `projects`.)
 export default defineConfig({
   test: {
-    projects: ["packages/*", "packages/games/*", "apps/*"],
+    // `packages/games` itself is a folder of packages, not a project.
+    projects: ["packages/!(games)", "packages/games/*", "apps/*"],
     coverage: {
       provider: "v8",
       include: ["packages/*/src/**/*.ts", "packages/games/*/src/**/*.ts", "apps/*/src/**/*.ts"],

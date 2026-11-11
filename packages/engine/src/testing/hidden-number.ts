@@ -92,7 +92,8 @@ export const hiddenNumber = defineGame({
   },
 
   nextDeadline(state) {
-    return state.winner === null ? { seat: state.turn, at: TURN_MS } : null;
+    if (state.winner !== null) return null;
+    return { seat: state.turn, at: TURN_MS, key: `turn:${state.guesses.length}` };
   },
 
   autoAction(state, seat, rng) {
