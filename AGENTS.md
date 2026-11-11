@@ -43,7 +43,9 @@ LiveKit Cloud (voice) · Tailwind v4 · Base UI · Motion · Sonner · Vitest ·
 
 ## Git workflow (required)
 
-- Work on **`dev`**. `main` only receives releases by PR from `dev`. Never commit or push to `main` directly.
+- **`main` = production** (live site, deployed only from `main`). **`dev` = development** (daily work,
+  preview deploys). Work on `dev`. `main` changes only by a PR from `dev` (enforced by branch
+  protection). Never commit or push to `main` directly.
 - **Commit after every working step** (small, self-contained, builds and tests pass), so any change
   can be traced and reverted.
 - Commit messages follow Conventional Commits and explain *what* and *why*:

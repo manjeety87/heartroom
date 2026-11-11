@@ -2,8 +2,9 @@
 
 ## Branches
 
-- `main`: released code only. Updated by a PR from `dev`. No direct commits.
-- `dev`: integration branch. Daily work lands here.
+- `main`: **production**. Whatever is on `main` is what runs live (production deploys are built from
+  `main` only). Updated by a PR from `dev`. Direct pushes are blocked by branch protection.
+- `dev`: **development**. Daily work lands here, and preview/staging deploys are built from `dev`.
 - `feat/<name>`, `fix/<name>`, `docs/<name>`: your work, branched from `dev`, merged back by PR.
 
 ```bash
