@@ -29,3 +29,7 @@ Append-only. One line per decision: date, the decision, and the reason. Details 
 | 2026-11-10 | Expired seat = server auto-plays it. >2 auto turns → unranked. No human connected for 3 turns → abandoned | Stops self-finishing ranked games |
 | 2026-11-10 | 18+ asked once, on the first join screen | One place, consistent with CUJ 2 |
 | 2026-11-10 | Phases split: 0 engine only, 2a online (Option C), 2b reconnect/host/PWA, 2c checkpoint (Option A) | Smaller steps for one developer |
+| 2026-11-10 | Engineering standards adopted: docs/engineering/{backend,frontend,motion}.md (from top-starred repos + skills) | One reference for every agent and device |
+| 2026-11-10 | *(Proposed, owner to confirm)* JS budgets: landing ≤120 KB gz, room shell ≤170 KB, each game ≤60 KB | Mid-range Android on 4G |
+| 2026-11-10 | Motion stack: CSS/WAAPI + Motion (LazyMotion), hand-built SVG ink; no GSAP/Lottie/Rive/confetti; Web Audio for 3 sounds | Small bundle, notebook brand |
+| 2026-11-10 | Node ≥22.12, ESM, pnpm 12 via corepack | Owner's machines |

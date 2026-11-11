@@ -16,8 +16,12 @@ spectators, accounts, stats, leaderboard, admin) is shared, and each game is a p
 2. `docs/DECISIONS.md`: decisions already made. Do not reopen them unless the user asks.
 3. `docs/design/heartroom-design.md`: the full design doc (architecture, contract, phases, file plan).
    Read only the section your task needs.
-4. `docs/design/design-direction.md`: design tokens, screens, motion, accessibility, for any UI work.
-5. `docs/design/concepts-brief.md` and `docs/design/research.md`: background and why things are the way they are.
+4. **Engineering standards. Follow the one that matches your task before writing code:**
+   - `docs/engineering/backend.md`: server, packages, config, errors, logging, security, DB, tests
+   - `docs/engineering/frontend.md`: Next.js structure, state, realtime client, forms, a11y, budgets
+   - `docs/engineering/motion.md`: animation recipes, libraries, sound/haptics, performance
+5. `docs/design/design-direction.md`: design tokens, screens, motion, accessibility, for any UI work.
+6. `docs/design/concepts-brief.md` and `docs/design/research.md`: background and why things are the way they are.
 
 ## Stack (planned; see the design doc for details)
 

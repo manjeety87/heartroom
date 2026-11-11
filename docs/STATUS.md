@@ -11,7 +11,8 @@ _Update this file at the end of every working session (any agent, any device)._
       accounts, leaderboard, admin). See `docs/DECISIONS.md`.
 - [x] Goldfish review of the concept (4 lenses), games research and the design system.
 - [x] Full design doc drafted: `docs/design/heartroom-design.md`.
-- [x] Repo created with agent docs (AGENTS.md, CLAUDE.md), `main` + `dev` branches.
+- [x] Repo created with agent docs (AGENTS.md, CLAUDE.md), `main` + `dev` branches (main protected).
+- [x] Engineering standards written: `docs/engineering/backend.md`, `frontend.md`, `motion.md`.
 
 ## Next
 

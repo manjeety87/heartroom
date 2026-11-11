@@ -667,7 +667,7 @@ BingoConfig = {
     *   One game-server process handles at least 500 concurrent rooms. A load test confirms this before launch.
 *   **Rollout & rollback**
     *   Web: Vercel preview deploy for each PR, and instant rollback to the previous deployment.
-    *   Game server: deploy with drain (10 min). Rollback = redeploy the previous image. Checkpoints carry
+    *   Game server: immediate restart, and clients resume from checkpoints (see "Deploys and crashes"). Rollback = redeploy the previous image. Checkpoints carry
         `moduleVersion`, and a server refuses to restore a checkpoint from an unknown version.
     *   Database: forward-only Drizzle migrations, applied before deploys. A migration never removes a
         column that the running version still reads.
@@ -856,7 +856,7 @@ that its threat model gets its own tests.
 #### 18. `apps/server/src/rooms/codes.ts` + test (Create)
 
 *   **Type / Scope**: Library.
-*   **Proposed Changes**: Code generation from the 31-character alphabet, collision check against live
+*   **Proposed Changes**: Code generation from the 32-character alphabet, collision check against live
     rooms, `linkToken` generation, and a per-IP join rate limiter (token bucket in memory).
 
 #### 19. `apps/server/src/checkpoint.ts` + test (Create)
