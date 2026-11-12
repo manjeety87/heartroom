@@ -1,4 +1,4 @@
-import { newSeed, startMatch, step, type Rng } from "@heartroom/engine";
+import { newSeed, startMatch, step, type LogEntry, type Rng } from "@heartroom/engine";
 import {
   bingo,
   chooseCall,
@@ -13,45 +13,58 @@ import {
 /**
  * vs Computer runs entirely in the browser. It uses the same rules and the same `step()` as the
  * room, so offline play cannot drift from online play. Nothing here is sent anywhere, so it never
- * touches stats.
+ * touches stats. The match keeps its seed and every accepted move, so History can replay it.
  */
 
 export const HUMAN = 0;
 export const BOT = 1;
 
 export type LocalMatch = {
+  readonly config: BingoConfig;
+  readonly seed: Uint8Array;
   readonly state: BingoState;
+  /** Every accepted move in order: with the seed, enough to rebuild any moment of the game. */
+  readonly log: readonly LogEntry<BingoAction>[];
   readonly level: BotLevel;
   /** Why the last move was refused (a stable reason key), if it was. */
   readonly rejected: string | null;
 };
 
+function apply(match: LocalMatch, entry: LogEntry<BingoAction>): LocalMatch {
+  const result = step(bingo, match.state, entry);
+  return result.ok
+    ? { ...match, state: result.state, log: [...match.log, entry], rejected: null }
+    : { ...match, rejected: result.reason };
+}
+
 /** A new game. The human calls first in odd games and the computer in even ones. */
 export function startLocalMatch(
-  config: Omit<BingoConfig, "firstSeat">,
+  settings: Omit<BingoConfig, "firstSeat">,
   level: BotLevel,
   gameNumber: number,
   rng: Rng,
 ): LocalMatch {
-  const firstSeat = gameNumber % 2 === 1 ? HUMAN : BOT;
-  let state = startMatch(bingo, { config: { ...config, firstSeat }, seats: 2, seed: newSeed() });
+  const config: BingoConfig = { ...settings, firstSeat: gameNumber % 2 === 1 ? HUMAN : BOT };
+  const seed = newSeed();
+  let match: LocalMatch = {
+    config,
+    seed,
+    state: startMatch(bingo, { config, seats: 2, seed }),
+    log: [],
+    level,
+    rejected: null,
+  };
   // The computer fills its grid at once; it only ever sees its own seat.
-  for (const action of [
-    { type: "fill", grid: fillGrid(config.size, rng) },
-    { type: "ready" },
-  ] as const) {
-    const result = step(bingo, state, { seat: BOT, action, by: "server" });
-    if (result.ok) state = result.state;
-  }
-  return { state, level, rejected: null };
+  match = apply(match, {
+    seat: BOT,
+    action: { type: "fill", grid: fillGrid(config.size, rng) },
+    by: "server",
+  });
+  return apply(match, { seat: BOT, action: { type: "ready" }, by: "server" });
 }
 
-export function playHuman(match: LocalMatch, action: BingoAction): LocalMatch {
-  const result = step(bingo, match.state, { seat: HUMAN, action, by: "player" });
-  return result.ok
-    ? { ...match, state: result.state, rejected: null }
-    : { ...match, rejected: result.reason };
-}
+export const playHuman = (match: LocalMatch, action: BingoAction): LocalMatch =>
+  apply(match, { seat: HUMAN, action, by: "player" });
 
 export const isBotTurn = (match: LocalMatch): boolean =>
   match.state.phase === "playing" && match.state.turn === BOT;
@@ -60,9 +73,11 @@ export const isBotTurn = (match: LocalMatch): boolean =>
 export function playBot(match: LocalMatch, rng: Rng): LocalMatch {
   if (!isBotTurn(match)) return match;
   const view = bingo.view(match.state, { kind: "seat", seat: BOT }) as BingoSeatView;
-  const action: BingoAction = { type: "call", n: chooseCall(view, match.level, rng) };
-  const result = step(bingo, match.state, { seat: BOT, action, by: "server" });
-  return result.ok ? { ...match, state: result.state } : match;
+  return apply(match, {
+    seat: BOT,
+    action: { type: "call", n: chooseCall(view, match.level, rng) },
+    by: "server",
+  });
 }
 
 export const humanView = (match: LocalMatch): BingoSeatView =>

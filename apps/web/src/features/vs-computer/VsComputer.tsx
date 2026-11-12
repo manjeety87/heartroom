@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createRng, newSeed } from "@heartroom/engine";
 import {
   BOT_LEVELS,
@@ -10,8 +10,10 @@ import {
   PRESETS,
   type BotLevel,
 } from "@heartroom/bingo";
-import { BingoGame } from "@heartroom/bingo/ui";
-import { Button } from "@heartroom/ui";
+import { BingoGame, type Player } from "@heartroom/bingo/ui";
+import { Button, SegmentedControl, seatColorVar } from "@heartroom/ui";
+import { computerColor, useProfile } from "@/lib/profile";
+import { saveFinishedGame } from "../history/history.ts";
 import {
   humanView,
   isBotTurn,
@@ -20,16 +22,17 @@ import {
   startLocalMatch,
   type LocalMatch,
 } from "./local-match.ts";
+import { useBingoFeedback } from "./use-bingo-feedback.ts";
 
 /** A short pause before the computer calls, so its move reads as a turn rather than a flicker. */
 const BOT_DELAY_MS = 800;
 
-const NAMES = ["You", "Computer"] as const;
 const LEVEL_LABELS: Readonly<Record<BotLevel, string>> = {
   easy: "Easy",
   medium: "Medium",
   hard: "Hard",
 };
+const LEVELS = BOT_LEVELS.map((value) => ({ value, label: LEVEL_LABELS[value] }));
 
 /** Copy for the reasons a move can be refused; the screen never shows raw reason keys. */
 const REFUSALS: Readonly<Record<string, string>> = {
@@ -41,21 +44,35 @@ const REFUSALS: Readonly<Record<string, string>> = {
 type Settings = { readonly size: number; readonly linesToWin: number; readonly level: BotLevel };
 
 export function VsComputer() {
+  const profile = useProfile();
   const [settings, setSettings] = useState<Settings>({ size: 5, linesToWin: 5, level: "medium" });
   const [match, setMatch] = useState<LocalMatch | null>(null);
   const [gameNumber, setGameNumber] = useState(1);
+  const [matchId, setMatchId] = useState("");
   const rng = useRef(createRng(newSeed()));
 
+  const players: readonly Player[] = useMemo(
+    () => [
+      { name: profile.name ?? "You", color: seatColorVar(profile.color) },
+      { name: "Computer", color: seatColorVar(computerColor(profile.color)) },
+    ],
+    [profile.name, profile.color],
+  );
+  const view = useMemo(() => (match === null ? null : humanView(match)), [match]);
+  useBingoFeedback(view, profile);
+
   const start = (number: number) => {
-    setGameNumber(number);
     const config = {
       size: settings.size,
       linesToWin: settings.linesToWin,
       timer: "chill",
     } as const;
+    setGameNumber(number);
+    setMatchId(crypto.randomUUID());
     setMatch(startLocalMatch(config, settings.level, number, rng.current));
   };
 
+  // The computer's turn, after a short pause.
   useEffect(() => {
     if (match === null || !isBotTurn(match)) return;
     const timer = window.setTimeout(() => {
@@ -66,7 +83,13 @@ export function VsComputer() {
     };
   }, [match]);
 
-  if (match === null) {
+  // A finished game goes to History once (saveFinishedGame ignores a repeat id).
+  useEffect(() => {
+    if (match?.state.phase !== "done") return;
+    saveFinishedGame(match, [...players], matchId, new Date());
+  }, [match, matchId, players]);
+
+  if (match === null || view === null) {
     return (
       <SettingsForm
         settings={settings}
@@ -85,8 +108,8 @@ export function VsComputer() {
   return (
     <div className="flex flex-col gap-4">
       <BingoGame
-        view={humanView(match)}
-        names={NAMES}
+        view={view}
+        players={players}
         onIntent={(action) => {
           setMatch((m) => (m === null ? m : playHuman(m, action)));
         }}
@@ -119,35 +142,48 @@ function SettingsForm({
 }) {
   const sizes = Array.from({ length: MAX_SIZE - MIN_SIZE + 1 }, (_, i) => MIN_SIZE + i);
   const lineOptions = Array.from({ length: lineCountFor(settings.size) }, (_, i) => i + 1);
+  const selectClass =
+    "min-h-11 rounded-tile bg-well px-3 text-body text-ink focus-visible:outline-2 focus-visible:outline-pen";
 
   return (
-    <form
-      className="flex flex-col gap-6"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onStart();
-      }}
-    >
-      <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 font-semibold text-ink">Grid</legend>
-        <div className="flex flex-wrap gap-2">
-          {Object.entries(PRESETS).map(([id, preset]) => (
-            <Choice
-              key={id}
-              name="preset"
-              label={preset.label}
-              isChecked={settings.size === preset.size && settings.linesToWin === preset.linesToWin}
-              onSelect={() => {
-                onChange({ ...settings, size: preset.size, linesToWin: preset.linesToWin });
-              }}
-            />
-          ))}
+    // Not a <form>: a tap before hydration would submit it natively and reload the page.
+    <div className="flex flex-col gap-6">
+      <fieldset className="flex flex-col gap-3">
+        <legend className="mb-2 font-display text-title font-bold tracking-tight text-ink">
+          Grid
+        </legend>
+        <div className="grid grid-cols-2 gap-2">
+          {Object.entries(PRESETS).map(([id, preset]) => {
+            const isChecked =
+              settings.size === preset.size && settings.linesToWin === preset.linesToWin;
+            return (
+              <label
+                key={id}
+                className={`flex cursor-pointer flex-col gap-1 rounded-card p-3 ring-2 transition-[box-shadow,background-color] duration-(--duration-press) ease-out has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-pen ${
+                  isChecked ? "bg-sheet ring-pen shadow-float" : "bg-well ring-transparent"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="preset"
+                  checked={isChecked}
+                  onChange={() => {
+                    onChange({ ...settings, size: preset.size, linesToWin: preset.linesToWin });
+                  }}
+                  className="sr-only"
+                />
+                <MiniGrid size={preset.size} />
+                <span className="text-body font-semibold text-ink">{preset.label}</span>
+                <span className="text-caption text-pencil">{preset.linesToWin} lines to win</span>
+              </label>
+            );
+          })}
         </div>
-        <div className="mt-2 flex flex-wrap gap-4 text-small text-pencil">
+        <div className="flex flex-wrap gap-4 text-small text-pencil">
           <label className="flex items-center gap-2">
             Size
             <select
-              className="min-h-11 rounded-tile bg-well px-3 text-body text-ink"
+              className={selectClass}
               value={settings.size}
               onChange={(event) => {
                 const size = Number(event.target.value);
@@ -168,7 +204,7 @@ function SettingsForm({
           <label className="flex items-center gap-2">
             Lines to win
             <select
-              className="min-h-11 rounded-tile bg-well px-3 text-body text-ink"
+              className={selectClass}
               value={settings.linesToWin}
               onChange={(event) => {
                 onChange({ ...settings, linesToWin: Number(event.target.value) });
@@ -183,52 +219,38 @@ function SettingsForm({
           </label>
         </div>
       </fieldset>
-      <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 font-semibold text-ink">Computer</legend>
-        <div className="flex flex-wrap gap-2">
-          {BOT_LEVELS.map((level) => (
-            <Choice
-              key={level}
-              name="level"
-              label={LEVEL_LABELS[level]}
-              isChecked={settings.level === level}
-              onSelect={() => {
-                onChange({ ...settings, level });
-              }}
-            />
-          ))}
-        </div>
-      </fieldset>
-      <Button type="submit" className="self-start">
+      <div className="flex flex-col gap-3">
+        <h2 className="font-display text-title font-bold tracking-tight text-ink">Computer</h2>
+        <SegmentedControl
+          label="How well the computer plays"
+          options={LEVELS}
+          value={settings.level}
+          onChange={(level) => {
+            onChange({ ...settings, level });
+          }}
+        />
+      </div>
+      <Button className="self-stretch sm:self-start" onClick={onStart}>
         Start game
       </Button>
       <p className="text-small text-pencil">
         Games against the computer stay on this device and don’t count towards stats.
       </p>
-    </form>
+    </div>
   );
 }
 
-/** A radio styled as a pill. The real input keeps keyboard and screen-reader behaviour. */
-function Choice({
-  name,
-  label,
-  isChecked,
-  onSelect,
-}: {
-  readonly name: string;
-  readonly label: string;
-  readonly isChecked: boolean;
-  readonly onSelect: () => void;
-}) {
+/** A tiny picture of the grid size, so presets read at a glance. */
+function MiniGrid({ size }: { readonly size: number }) {
   return (
-    <label
-      className={`flex min-h-11 cursor-pointer items-center rounded-pill px-4 text-body has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-pen ${
-        isChecked ? "bg-pen text-on-pen" : "bg-well text-ink"
-      }`}
+    <span
+      aria-hidden
+      className="grid size-10 gap-px"
+      style={{ gridTemplateColumns: `repeat(${String(size)}, minmax(0, 1fr))` }}
     >
-      <input type="radio" name={name} checked={isChecked} onChange={onSelect} className="sr-only" />
-      {label}
-    </label>
+      {Array.from({ length: size * size }, (_, i) => (
+        <span key={i} className="rounded-xs bg-pencil/40" />
+      ))}
+    </span>
   );
 }

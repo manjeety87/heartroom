@@ -128,8 +128,9 @@ function NameField({
   return (
     <form
       className="flex flex-col gap-1"
-      onSubmit={(event) => {
-        event.preventDefault();
+      // A function action: React 19 blocks a native submit before hydration, so a typed name can
+      // never end up in the URL.
+      action={() => {
         const checked = checkName(draft);
         if (!checked.ok) {
           setMessage({ text: checked.message, isError: true });
