@@ -4,8 +4,8 @@
     {
       "name": "web",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@heartroom/web", "dev"],
-      "port": 3000
+      "runtimeArgs": ["--filter", "@heartroom/web", "exec", "next", "dev", "--port", "3100"],
+      "port": 3100
     }
   ]
 }

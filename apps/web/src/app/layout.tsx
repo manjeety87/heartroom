@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Bricolage_Grotesque, Figtree } from "next/font/google";
+import { THEME_BOOT_SCRIPT, themeCss } from "@heartroom/ui";
+import { AppShell } from "@/components/AppShell";
 import "./globals.css";
 
 const display = Bricolage_Grotesque({
@@ -36,8 +38,15 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { readonly children: ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${sans.variable}`}>
-      <body className="antialiased">{children}</body>
+    // The boot script sets data-theme / data-mode / data-text-size before React hydrates.
+    <html lang="en" className={`${display.variable} ${sans.variable}`} suppressHydrationWarning>
+      <head>
+        <style>{themeCss()}</style>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+      </head>
+      <body className="antialiased">
+        <AppShell>{children}</AppShell>
+      </body>
     </html>
   );
 }

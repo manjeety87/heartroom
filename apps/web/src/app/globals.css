@@ -5,6 +5,9 @@
 @source "../../../../packages/ui/src";
 @source "../../../../packages/games";
 
+/* Apple's "Reduce transparency": translucent bars become solid. */
+@custom-variant reduced-transparency (@media (prefers-reduced-transparency: reduce));
+
 /* next/font gives each family a hashed name; point the font tokens at its variables. */
 :root {
   --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
