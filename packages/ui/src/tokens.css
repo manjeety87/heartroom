@@ -74,6 +74,27 @@
   --duration-ink-draw: 280ms;
   --duration-line-strike: 360ms;
   --duration-reduced-fade: 150ms;
+
+  /* Ink is drawn along an SVG stroke with pathLength="1" and stroke-dasharray="1". */
+  --animate-ink-draw: ink-draw var(--duration-ink-draw) var(--ease-out) both;
+  --animate-line-strike: ink-draw var(--duration-line-strike) var(--ease-out) both;
+  /* Reduced motion replaces movement with a short fade. */
+  --animate-fade-in: fade-in var(--duration-reduced-fade) linear both;
+
+  @keyframes ink-draw {
+    from {
+      stroke-dashoffset: 1;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
 }
 
 :root {
