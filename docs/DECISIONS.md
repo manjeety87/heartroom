@@ -48,3 +48,10 @@ Append-only. One line per decision: date, the decision, and the reason. Details 
 | 2026-11-11 | Non-winners are ranked by lines completed (`placements`) | Gives `result()` a meaningful order without new rules |
 | 2026-11-11 | vs Computer uses the Chill timer with no Nudge (no clock for the human) | Offline practice should not rush the player |
 | 2026-11-11 | Tooling for the web: Next 16.4 (Turbopack), React 19.3, Tailwind 4.3, eslint-plugin-react-hooks 7, @next/eslint-plugin-next; component tests use happy-dom + Testing Library | Current stable; all work with ESLint 9 / Node 22.12 |
+| 2026-11-11 | Looks like ShiftBuddy: themes × light/dark + Auto, Make your own, text size; palettes in TS (`themes.ts`) feed both CSS and a contrast test | Owner's request; one source of truth that can't ship an unreadable theme |
+| 2026-11-11 | 8 themes at launch (Notebook default + 7 from the ShiftBuddy families) | Enough choice; more are one entry each |
+| 2026-11-11 | Six fixed player colours; a called number is inked in its caller's colour, the viewer's own calls heavier | Owner: boards looked the same and "who did what" was invisible |
+| 2026-11-11 | 7×7 and 8×8 call in two taps (pick, then Call or tap again) instead of press-and-hold | Same safety on ~36 px cells, easier to discover, works with keyboard |
+| 2026-11-11 | History on the device = (config, seed, actions, players), rebuilt with `replay()`; newest 50 | Shows what really happened; same record the server will store |
+| 2026-11-11 | Names: shared `nicknameInput`; unique per room (server, Phase 2), not globally | Friends' rooms need no global namespace |
+| 2026-11-11 | No `<form onSubmit>` that can submit natively; function actions or buttons | A pre-hydration tap reloaded the page and could put a name in the URL |

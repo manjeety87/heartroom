@@ -3,7 +3,7 @@
 _Update this file at the end of every working session (any agent, any device)._
 
 **Last updated:** 2026-11-11
-**Phase:** Phase 1 built → owner checks vs Computer on a phone, then Phase 2a (rooms, online Bingo).
+**Phase:** Phase 1 done (owner checked on a phone) + UI redesign → next is the Colyseus spike (Q2), then Phase 2a.
 
 ## Done
 
@@ -22,26 +22,29 @@ _Update this file at the end of every working session (any agent, any device)._
       with Nudge / away-only timers, view + `perturbHidden` passing `assertNoLeak`, bot Easy/Medium/Hard,
       UI components), `packages/ui` Button, and `apps/web` (Next 16) with `/` and `/play/bingo`
       (vs Computer, runs fully in the browser). 151 tests; `next build` passes; played in a 375 px browser.
+      Owner checked it on a phone: looks good.
+- [x] **UI redesign + Phase 1 gaps** (2026-11-11, owner feedback): 8 themes × light/dark + Auto, Make your
+      own, text size, player colours; Settings (name, colour, look, sounds); Bingo redesign (numbers inked
+      in the caller's colour, players bar, last-call stage, call log, win motion, two-tap call on 7×7/8×8);
+      History with step-through replay; sounds/haptics; error/loading states. All recorded in
+      `docs/design/ui-system.md`. 211 tests.
 
 ## Next
 
-1. **Owner check (Phase 1 exit):** on the laptop run `pnpm --filter @heartroom/web build` then
-   `pnpm --filter @heartroom/web start`, and open `http://<laptop-ip>:3000/play/bingo` on a phone on the
-   same Wi-Fi (the production server avoids Next's dev-only cross-origin block for LAN IPs). Play every preset + a custom size at each level. Check: tap-in-order, Shuffle keeps
-   tapped numbers, the computer's turns, results reveal, Rematch (first caller alternates), light + dark.
-2. **Phase 1 gaps (small, do before or with Phase 2a):** press-and-hold preview before calling on
-   7×7/8×8 (cells are ~36 px at 375 px wide), win sequence motion (letters fill, grid lift, flip-in
-   stagger), the 3 sounds + Android haptics, `loading.tsx` / `error.tsx` and a per-game error boundary.
-3. **Before Phase 2:** Open Question Q2 (Colyseus spike), then Phase 2a (#15–#18, #20–#23).
-   The room must honour `Deadline.key` / `onlyWhenAway` (see DECISIONS 2026-11-11).
-4. Still open: Q1 (pricing), Q3 (name check).
+1. **Owner check of the redesign** on a phone: Settings (name, colour, every theme in light and dark,
+   Make your own, text size), a game at 5×5 and 8×8 (two-tap call), results, History step-through,
+   sounds and vibration. Same commands as before (`build`, then `start`, open `/play/bingo`).
+2. **Open Question Q2 (Colyseus spike)**, then **Phase 2a** (#15–#18, #20–#23). The room must honour
+   `Deadline.key` / `onlyWhenAway`, give each joiner a free player colour, and keep names unique
+   per room (`docs/design/ui-system.md` › Names, Player colours).
+3. Still open: Q1 (pricing), Q3 (name check).
 
 ## Phases
 
 | Phase | Scope | State |
 |---|---|---|
 | 0 | Workspace, engine, protocol, UI tokens | done 2026-11-11 |
-| 1 | Bingo rules + vs Computer (offline) | built 2026-11-11, owner phone check pending |
+| 1 | Bingo rules + vs Computer (offline) | done 2026-11-11 (+ UI redesign) |
 | 2 | Rooms (Colyseus) + online Bingo + crash recovery | not started |
 | 3 | Voice (LiveKit) + host powers | not started |
 | 4 | Google login + history | not started |
@@ -58,4 +61,6 @@ _Update this file at the end of every working session (any agent, any device)._
   `hiddenNumber` there is the smallest complete example of a `GameModule`.
 - Tailwind only sees workspace packages listed with `@source` in `apps/web/src/app/globals.css`; a
   new package with UI classes must be added there, or its classes silently don't exist.
+- UI work: read `docs/design/ui-system.md` first; add themes only in `packages/ui/src/theme/themes.ts`
+  (the contrast test guards them).
 - Bot strength tests use 2,000 fixed seeds; if a bot change fails them, the levels moved closer together.
