@@ -1,7 +1,9 @@
 // @ts-check
 import js from "@eslint/js";
 import prettier from "eslint-config-prettier";
+import nextPlugin from "@next/eslint-plugin-next";
 import globals from "globals";
+import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
 /** Globals that would make rules depend on a platform, a clock or I/O. */
@@ -25,7 +27,7 @@ const TS_ONLY_SYNTAX = [
 ];
 
 export default tseslint.config(
-  { ignores: ["**/node_modules/", "**/coverage/", "**/dist/", "**/.next/"] },
+  { ignores: ["**/node_modules/", "**/coverage/", "**/dist/", "**/.next/", "**/next-env.d.ts"] },
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,
@@ -81,11 +83,24 @@ export default tseslint.config(
     },
   },
   {
+    files: ["**/*.tsx"],
+    ...reactHooks.configs.flat.recommended,
+  },
+  {
+    files: ["apps/web/**/*.{ts,tsx}"],
+    plugins: { "@next/next": nextPlugin },
+    rules: {
+      ...nextPlugin.configs.recommended.rules,
+      ...nextPlugin.configs["core-web-vitals"].rules,
+    },
+    settings: { next: { rootDir: "apps/web" } },
+  },
+  {
     files: ["**/*.test.ts"],
     rules: { "@typescript-eslint/no-non-null-assertion": "off" },
   },
   {
-    files: ["**/*.js"],
+    files: ["**/*.{js,mjs}"],
     ...tseslint.configs.disableTypeChecked,
   },
   prettier,

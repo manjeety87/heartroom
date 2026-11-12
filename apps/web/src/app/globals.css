@@ -1,0 +1,26 @@
+@import "tailwindcss";
+@import "@heartroom/ui/tokens.css";
+
+/* Workspace packages are symlinked under node_modules, which Tailwind skips; list them. */
+@source "../../../../packages/ui/src";
+@source "../../../../packages/games";
+
+/* next/font gives each family a hashed name; point the font tokens at its variables. */
+:root {
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+
+  body {
+    min-height: 100dvh;
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+}
