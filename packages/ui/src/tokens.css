@@ -4,8 +4,8 @@
  * first. Tailwind v4 turns each `--color-*`, `--font-*`, `--text-*`, `--radius-*`, `--shadow-*` and
  * `--ease-*` into utilities (`bg-paper`, `text-ink`, `rounded-card`, `ease-out`…).
  *
- * Dark mode overrides the same variables: it follows the system unless the page sets
- * `data-theme="light"` or `data-theme="dark"` on <html>.
+ * These defaults are the Notebook theme, light side. `themeCss()` (src/theme/css.ts) overrides the
+ * same variables per `data-theme` / `data-mode` on <html>.
  */
 
 @theme {
@@ -23,6 +23,14 @@
   --color-on-highlighter: #18213a;
   --color-cover: #cbe4f2;
   --color-line: rgb(24 33 58 / 0.1);
+
+  /* Player colours (light side; css.ts sets the dark side). One per seat, fixed across themes. */
+  --color-seat-indigo: #3d4fd8;
+  --color-seat-coral: #c2382e;
+  --color-seat-teal: #0b7470;
+  --color-seat-amber: #955700;
+  --color-seat-violet: #8a3fc4;
+  --color-seat-green: #2c7a30;
 
   /* Per-game accents: only on that game's card, board header and result screen. */
   --color-game-bingo: #c42a44;
@@ -101,37 +109,7 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --color-paper: #0f1730;
-    --color-sheet: #18223f;
-    --color-well: #222c4a;
-    --color-ink: #e8ecf5;
-    --color-pencil: #9aa6c2;
-    --color-pen: #8fa6ff;
-    --color-on-pen: #0f1730;
-    --color-margin: #ff7a8c;
-    --color-on-margin: #0f1730;
-    --color-cover: #18223f;
-    --color-line: rgb(255 255 255 / 0.08);
-    --shadow-float: 0 0 0 1px rgb(255 255 255 / 0.08);
-  }
-}
-
-/* Same values as the media query above, for an explicit choice that overrides the system. */
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --color-paper: #0f1730;
-  --color-sheet: #18223f;
-  --color-well: #222c4a;
-  --color-ink: #e8ecf5;
-  --color-pencil: #9aa6c2;
-  --color-pen: #8fa6ff;
-  --color-on-pen: #0f1730;
-  --color-margin: #ff7a8c;
-  --color-on-margin: #0f1730;
-  --color-cover: #18223f;
-  --color-line: rgb(255 255 255 / 0.08);
-  --shadow-float: 0 0 0 1px rgb(255 255 255 / 0.08);
-}
+/*
+ * Other themes, the dark side, player colours and text size come from `themeCss()` in
+ * src/theme/css.ts (one source with the contrast tests), injected by the app's root layout.
+ */

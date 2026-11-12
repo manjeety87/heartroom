@@ -20,6 +20,22 @@ export const LIMITS = {
 
 const id = z.string().min(1).max(LIMITS.ID_CHARS);
 const nickname = z.string().min(1).max(LIMITS.NICKNAME_CHARS);
+
+/**
+ * What a person types as their name: trimmed, inner spaces collapsed, NFC-normalised (so "é" typed
+ * two ways is one name), then 1–20 characters with at least one letter or digit. Uniqueness is per
+ * room and is decided by the server when someone joins.
+ */
+export const nicknameInput = z
+  .string()
+  .transform((s) => s.normalize("NFC").trim().replace(/\s+/g, " "))
+  .pipe(
+    z
+      .string()
+      .min(1, "Type a name.")
+      .max(LIMITS.NICKNAME_CHARS, `Keep it to ${String(LIMITS.NICKNAME_CHARS)} characters.`)
+      .regex(/[\p{L}\p{N}]/u, "Use at least one letter or number."),
+  );
 const seq = z.number().int().nonnegative();
 
 // ── client → server ─────────────────────────────────────────────────────────────────────────────

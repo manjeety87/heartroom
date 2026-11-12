@@ -14,6 +14,7 @@ export {
   intentMessage,
   knockMessage,
   LIMITS,
+  nicknameInput,
   rematchReadyMessage,
   resumeMessage,
   resyncMessage,

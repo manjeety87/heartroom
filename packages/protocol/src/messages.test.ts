@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CLOSE_CODES, ERROR_CODES, ERROR_MESSAGES } from "./errors.ts";
-import { clientMessage, LIMITS, serverMessage } from "./messages.ts";
+import { clientMessage, LIMITS, nicknameInput, serverMessage } from "./messages.ts";
 
 describe("clientMessage", () => {
   it.each([
@@ -66,6 +66,21 @@ describe("serverMessage", () => {
     ["a nickname over 20 characters", { type: "knock", knockId: "k", nickname: "x".repeat(21) }],
   ])("when the message has %s, then it is rejected", (_, message) => {
     expect(serverMessage.safeParse(message).success).toBe(false);
+  });
+});
+
+describe("nicknameInput", () => {
+  it.each([
+    ["  Riya  ", "Riya"],
+    ["Aarav   Kumar", "Aarav Kumar"],
+    ["émile", "émile"],
+    ["मन", "मन"],
+  ])("when given %j, then it becomes %j", (input, output) => {
+    expect(nicknameInput.parse(input)).toBe(output);
+  });
+
+  it.each([[""], ["   "], ["x".repeat(21)], ["!!!"]])("when given %j, then it is refused", (input) => {
+    expect(nicknameInput.safeParse(input).success).toBe(false);
   });
 });
 
