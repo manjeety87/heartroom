@@ -79,9 +79,12 @@ describe("nicknameInput", () => {
     expect(nicknameInput.parse(input)).toBe(output);
   });
 
-  it.each([[""], ["   "], ["x".repeat(21)], ["!!!"]])("when given %j, then it is refused", (input) => {
-    expect(nicknameInput.safeParse(input).success).toBe(false);
-  });
+  it.each([[""], ["   "], ["x".repeat(21)], ["!!!"]])(
+    "when given %j, then it is refused",
+    (input) => {
+      expect(nicknameInput.safeParse(input).success).toBe(false);
+    },
+  );
 });
 
 describe("codes", () => {

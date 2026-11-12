@@ -86,6 +86,14 @@
   /* Ink is drawn along an SVG stroke with pathLength="1" and stroke-dasharray="1". */
   --animate-ink-draw: ink-draw var(--duration-ink-draw) var(--ease-out) both;
   --animate-line-strike: ink-draw var(--duration-line-strike) var(--ease-out) both;
+  /*
+   * Celebration spring (design-direction: duration .5, bounce .2) as a CSS linear() curve, for the
+   * one moment that earns overshoot: a letter being stamped. Everything else is ease-out.
+   */
+  --ease-spring: linear(0, 0.31 9%, 0.69 20%, 0.95 32%, 1.06 42%, 1.07 50%, 1.03 62%, 0.995 80%, 1);
+  --animate-stamp: stamp 420ms var(--ease-spring) both;
+  --animate-rise: rise 320ms var(--ease-out) both;
+  --animate-lift: lift 500ms var(--ease-spring) both;
   /* Reduced motion replaces movement with a short fade. */
   --animate-fade-in: fade-in var(--duration-reduced-fade) linear both;
 
@@ -95,6 +103,26 @@
     }
     to {
       stroke-dashoffset: 0;
+    }
+  }
+
+  @keyframes stamp {
+    from {
+      transform: scale(1.5);
+      opacity: 0;
+    }
+  }
+
+  @keyframes rise {
+    from {
+      transform: translateY(12px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes lift {
+    to {
+      transform: translateY(-4px);
     }
   }
 
