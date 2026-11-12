@@ -28,10 +28,12 @@ _Update this file at the end of every working session (any agent, any device)._
       in the caller's colour, players bar, last-call stage, call log, win motion, two-tap call on 7×7/8×8);
       History with step-through replay; sounds/haptics; error/loading states. All recorded in
       `docs/design/ui-system.md`. 211 tests.
+- [x] **Fix: Start game on phones** (2026-11-11): `crypto.randomUUID` is missing on `http://<laptop-ip>`;
+      ids now come from `newId()`. Owner confirmed on the phone: works.
 
 ## Next
 
-1. **Owner check of the redesign** on a phone: Settings (name, colour, every theme in light and dark,
+1. **Owner check of the rest of the redesign** on a phone (Start game already confirmed): Settings (name, colour, every theme in light and dark,
    Make your own, text size), a game at 5×5 and 8×8 (two-tap call), results, History step-through,
    sounds and vibration. Same commands as before (`build`, then `start`, open `/play/bingo`).
 2. **Open Question Q2 (Colyseus spike)**, then **Phase 2a** (#15–#18, #20–#23). The room must honour
