@@ -112,6 +112,9 @@ same record from the server (Phase 4).
   `localStorage` directly.
 - **Forms:** a `<form action={fn}>` (React 19 blocks a native submit before hydration) or plain
   buttons. Never a `<form onSubmit>` that could submit natively and put data in the URL.
+- **No secure-context-only APIs** (`crypto.randomUUID`, `navigator.clipboard`, `navigator.share`…)
+  without a fallback: phones test the app at `http://<laptop-ip>:3000`, which is not a secure
+  context. Ids come from `newId()` (`lib/id.ts`); ESLint blocks `crypto.randomUUID` in `apps/web`.
 - **Empty states** offer the next action ("No games yet" → Play vs Computer).
 - **Live regions:** the last call, turn text and statuses are `aria-live="polite"`.
 

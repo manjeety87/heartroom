@@ -12,6 +12,7 @@ import {
 } from "@heartroom/bingo";
 import { BingoGame, type Player } from "@heartroom/bingo/ui";
 import { Button, SegmentedControl, seatColorVar } from "@heartroom/ui";
+import { newId } from "@/lib/id";
 import { computerColor, useProfile } from "@/lib/profile";
 import { saveFinishedGame } from "../history/history.ts";
 import {
@@ -68,7 +69,7 @@ export function VsComputer() {
       timer: "chill",
     } as const;
     setGameNumber(number);
-    setMatchId(crypto.randomUUID());
+    setMatchId(newId());
     setMatch(startLocalMatch(config, settings.level, number, rng.current));
   };
 

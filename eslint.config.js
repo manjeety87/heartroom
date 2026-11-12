@@ -92,6 +92,14 @@ export default tseslint.config(
     rules: {
       ...nextPlugin.configs.recommended.rules,
       ...nextPlugin.configs["core-web-vitals"].rules,
+      "no-restricted-properties": [
+        "error",
+        {
+          object: "crypto",
+          property: "randomUUID",
+          message: "Undefined on http:// LAN addresses (phone testing). Use newId() from lib/id.",
+        },
+      ],
     },
     settings: { next: { rootDir: "apps/web" } },
   },

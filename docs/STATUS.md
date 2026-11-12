@@ -61,6 +61,9 @@ _Update this file at the end of every working session (any agent, any device)._
   `hiddenNumber` there is the smallest complete example of a `GameModule`.
 - Tailwind only sees workspace packages listed with `@source` in `apps/web/src/app/globals.css`; a
   new package with UI classes must be added there, or its classes silently don't exist.
+- Phone testing uses plain `http://<laptop-ip>`, which is not a secure context: APIs like
+  `crypto.randomUUID` don't exist there (this broke Start game on 2026-11-11). Test on the phone, not
+  only on localhost.
 - UI work: read `docs/design/ui-system.md` first; add themes only in `packages/ui/src/theme/themes.ts`
   (the contrast test guards them).
 - Bot strength tests use 2,000 fixed seeds; if a bot change fails them, the levels moved closer together.
