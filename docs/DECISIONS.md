@@ -40,3 +40,11 @@ Append-only. One line per decision: date, the decision, and the reason. Details 
 | 2026-11-11 | `assertNoLeak` also fails if `perturbHidden` mutates the state or never changes anything | Otherwise a lazy `perturbHidden` passes and proves nothing |
 | 2026-11-11 | Host commands are a zod discriminated union by `kind` (snake_case); `config` carries `gameId` + opaque config | `target` required exactly where needed; the game's own schema parses config |
 | 2026-11-11 | Types use `type`, not `interface` (lint rule) | Views/results must be assignable to `Json`, which interfaces are not |
+| 2026-11-11 | `Deadline` gains `key` (a new key restarts the clock) and `onlyWhenAway` | One setup clock shared by all seats; turn clocks restart per call; Away-only mode |
+| 2026-11-11 | Bingo setup time is derived from size (`setupMsFor`), not a config field; `firstSeat` is a config field the room rotates | One source of truth; the module stays unaware of empty seats |
+| 2026-11-11 | Shuffle = a `fill` action carrying the client's own permutation; Shuffle keeps tapped numbers | `apply` stays free of randomness; it is the player's own grid, so client randomness is fair |
+| 2026-11-11 | Chill mode: any other seat can `nudge` once per turn, starting a 30 s clock | Concept brief's "Nudge" as a normal logged action |
+| 2026-11-11 | Bot levels: Hard = greedy line progress, Medium = greedy half the time, Easy = random (2,000-seed rates: Hard–Easy 95.9%, Hard–Medium 77.9%, Medium–Easy 67.8%) | Simulation: no smarter plan beat greedy in 1…N² Bingo, and a call reveals nothing about the opponent's grid; the design doc allowed changing levels |
+| 2026-11-11 | Non-winners are ranked by lines completed (`placements`) | Gives `result()` a meaningful order without new rules |
+| 2026-11-11 | vs Computer uses the Chill timer with no Nudge (no clock for the human) | Offline practice should not rush the player |
+| 2026-11-11 | Tooling for the web: Next 16.4 (Turbopack), React 19.3, Tailwind 4.3, eslint-plugin-react-hooks 7, @next/eslint-plugin-next; component tests use happy-dom + Testing Library | Current stable; all work with ESLint 9 / Node 22.12 |
