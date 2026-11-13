@@ -7,6 +7,7 @@ export {
 } from "./errors.ts";
 export {
   ackMessage,
+  checkpointMessage,
   clientMessage,
   errorMessage,
   gameMessage,
@@ -18,7 +19,6 @@ export {
   LIMITS,
   nicknameInput,
   rematchReadyMessage,
-  resumeMessage,
   resyncMessage,
   roomMessage,
   ROOM_PHASES,

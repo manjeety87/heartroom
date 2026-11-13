@@ -10,9 +10,9 @@ import { SEAT_COLOR_IDS } from "./seat-colors.ts";
  */
 
 export const LIMITS = {
-  /** Largest WebSocket payload in bytes, except `resume`. */
+  /** Largest WebSocket payload a browser may send, in bytes. */
   MESSAGE_BYTES: 8 * 1024,
-  /** A sealed checkpoint (base64url) is the one larger payload. */
+  /** A sealed checkpoint (base64url); it reaches the server only inside create/join options (HTTP). */
   CHECKPOINT_CHARS: 64 * 1024,
   ID_CHARS: 64,
   NICKNAME_CHARS: 20,
@@ -63,11 +63,6 @@ export const intentMessage = z.strictObject({
 
 export const resyncMessage = z.strictObject({ type: z.literal("resync") });
 
-export const resumeMessage = z.strictObject({
-  type: z.literal("resume"),
-  checkpoint: z.string().min(1).max(LIMITS.CHECKPOINT_CHARS),
-});
-
 const hostCommand = <K extends string>(kind: K) =>
   z.strictObject({ type: z.literal("host"), kind: z.literal(kind) });
 const hostTargetCommand = <K extends string>(kind: K) =>
@@ -100,7 +95,6 @@ export const rematchReadyMessage = z.strictObject({ type: z.literal("rematch_rea
 export const clientMessage = z.union([
   intentMessage,
   resyncMessage,
-  resumeMessage,
   hostMessage,
   voiceTokenRequest,
   rematchReadyMessage,
@@ -117,6 +111,11 @@ export type HostCommandKind = HostMessage["kind"];
 export const joinOptions = z.strictObject({
   nickname: nicknameInput,
   color: z.enum(SEAT_COLOR_IDS).optional(),
+  /**
+   * The last sealed checkpoint this browser got from the room, sent when the room may have been lost
+   * to a server restart. The server ignores it when the room is alive.
+   */
+  resume: z.string().min(1).max(LIMITS.CHECKPOINT_CHARS).optional(),
 });
 
 export type JoinOptions = z.input<typeof joinOptions>;
@@ -160,12 +159,11 @@ export const roomMessage = z.strictObject({
     .optional(),
 });
 
-/** One viewer's `view()` after action `seq`. A gap in `seq` means the client sends `resync`. */
+/** One viewer's `view()` after action `seq`. Views are full snapshots: the newest one wins. */
 export const gameMessage = z.strictObject({
   type: z.literal("game"),
   seq,
   view: z.unknown(),
-  checkpoint: z.string().max(LIMITS.CHECKPOINT_CHARS).optional(),
 });
 
 export const ackMessage = z.strictObject({ type: z.literal("ack"), clientActionId: id });
@@ -195,6 +193,15 @@ export const voiceTokenMessage = z.strictObject({
   url: z.url({ protocol: /^wss?$/ }),
 });
 
+/**
+ * The room's sealed state after its latest change, the same blob for everyone. Opaque to the browser:
+ * it only keeps the newest one and hands it back to resume after a server restart.
+ */
+export const checkpointMessage = z.strictObject({
+  type: z.literal("checkpoint"),
+  checkpoint: z.string().min(1).max(LIMITS.CHECKPOINT_CHARS),
+});
+
 export const knockMessage = z.strictObject({ type: z.literal("knock"), knockId: id, nickname });
 
 export const serverMessage = z.discriminatedUnion("type", [
@@ -204,6 +211,7 @@ export const serverMessage = z.discriminatedUnion("type", [
   errorMessage,
   voiceTokenMessage,
   knockMessage,
+  checkpointMessage,
 ]);
 
 export type ServerMessage = z.infer<typeof serverMessage>;

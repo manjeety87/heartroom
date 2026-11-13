@@ -14,6 +14,14 @@ import {
   type SeatColorId,
 } from "@heartroom/protocol";
 import type { VerifyToken } from "../auth/verify-token.ts";
+import {
+  chooseRestore,
+  RESEAL_EVERY_MS,
+  type MatchSnapshot,
+  type Resume,
+  type RoomSnapshot,
+  type Sealer,
+} from "../checkpoint.ts";
 import type { Logger } from "../logger.ts";
 import { newRoomCode } from "./codes.ts";
 import { msUntilDue, trackDeadline, type DeadlineClock } from "./deadline.ts";
@@ -23,13 +31,22 @@ import { createQueue, type Queue } from "./queue.ts";
 import { createRateLimiter } from "./rate-limit.ts";
 import { GAMES, isGameId } from "./registry.ts";
 
-export type GameRoomDeps = { readonly verifyToken: VerifyToken; readonly log: Logger };
+export type GameRoomDeps = {
+  readonly verifyToken: VerifyToken;
+  readonly log: Logger;
+  /** Seals and opens crash-recovery checkpoints (`CHECKPOINT_KEY`). */
+  readonly sealer: Sealer;
+  /** This process's id: a checkpoint sealed by it is never "restored". */
+  readonly bootId: string;
+};
 
 /** Seconds a dropped player keeps their place (design doc › GameRoom › Reconnect). */
 const RECONNECT_SECONDS = 60;
 /** Duplicate intents are re-acknowledged, not re-applied, within this many recent ids. */
 const RECENT_ACTION_IDS = 50;
 const MINUTE = 60_000;
+/** How long a room rebuilt after a restart waits for its players' checkpoints (design doc rule 2). */
+const RESTORE_WINDOW_MS = 5_000;
 
 /** Codes of rooms alive in this process; one process, so this is the whole world. */
 const liveCodes = new Set<string>();
@@ -83,11 +100,46 @@ export function createGameRoom(deps: GameRoomDeps) {
     private gamesStarted = 0;
     private deadlineClock: DeadlineClock | null = null;
     private deadlineTimer: { clear(): void } | null = null;
+    /** The setup the current/last match was started with (the host may change `setup` afterwards). */
+    private matchSetup: MatchSetup | null = null;
+    /** Bumped on every sealed checkpoint; orders checkpoints across games. */
+    private checkpointSeq = 0;
+    private isCheckpointDue = false;
+    /** While the room is being rebuilt after a restart: the checkpoints and sockets gathered so far. */
+    private restoring: {
+      readonly resumes: Resume[];
+      readonly sessions: Map<string, string>;
+      readonly timer: { clear(): void };
+    } | null = null;
 
-    override onCreate() {
-      this.roomId = newRoomCode((code) => liveCodes.has(code));
+    override onCreate(rawOptions: unknown) {
+      const resume = joinOptions.safeParse(rawOptions).data?.resume;
+      if (resume === undefined) {
+        this.roomId = newRoomCode((code) => liveCodes.has(code));
+      } else {
+        // A browser bringing back a room lost in a restart. Its checkpoint names the code.
+        const snapshot = deps.sealer.open(resume, Date.now());
+        if (snapshot === null || snapshot.bootId === deps.bootId)
+          refuse(410, "CHECKPOINT_REJECTED");
+        // Someone else brought it back first: the browser joins that room instead.
+        if (liveCodes.has(snapshot.roomId)) refuse(409, "ROOM_RESTORING");
+        this.roomId = snapshot.roomId;
+        this.restoring = {
+          resumes: [],
+          sessions: new Map(),
+          timer: this.clock.setTimeout(() => {
+            void this.queue.enqueue(() => {
+              this.finishRestore();
+            });
+          }, RESTORE_WINDOW_MS),
+        };
+      }
       liveCodes.add(this.roomId);
       this.log = deps.log.child({ roomId: this.roomId });
+      // Even with no moves, a fresh checkpoint every few minutes keeps a quiet room restorable.
+      this.clock.setInterval(() => {
+        this.markChanged();
+      }, RESEAL_EVERY_MS);
       this.queue = createQueue((error) => {
         this.log.error({ event: "room_task_failed", err: error }, "room_task_failed");
       });
@@ -110,6 +162,17 @@ export function createGameRoom(deps: GameRoomDeps) {
 
       const options = joinOptions.safeParse(rawOptions);
       if (!options.success) refuse(400, "INVALID_MESSAGE");
+      if (this.restoring !== null) {
+        // Only people from this room, holding its checkpoint, while it is being rebuilt.
+        const { resume } = options.data;
+        const snapshot = resume === undefined ? null : deps.sealer.open(resume, Date.now());
+        if (snapshot === null) refuse(503, "ROOM_RESTORING");
+        const isMember = snapshot.members.some((m) => m.userId === userId);
+        if (snapshot.roomId !== this.roomId || !isMember) refuse(503, "ROOM_RESTORING");
+        this.restoring.resumes.push({ userId, snapshot });
+        this.tickets.set(client.sessionId, { userId, nickname: options.data.nickname });
+        return true;
+      }
       if (this.bans.has(userId)) refuse(403, "BANNED");
       // A member coming back (refresh, second tab) gets in even when the host has locked the room.
       if (this.isLocked && !this.members.has(userId)) refuse(403, "ROOM_LOCKED");
@@ -126,6 +189,15 @@ export function createGameRoom(deps: GameRoomDeps) {
       this.tickets.delete(client.sessionId);
       if (ticket === undefined) throw new Error("joined without passing onAuth");
       const { userId } = ticket;
+      if (this.restoring !== null) {
+        this.restoring.sessions.set(client.sessionId, userId);
+        if (this.everyoneBack()) {
+          void this.queue.enqueue(() => {
+            this.finishRestore();
+          });
+        }
+        return;
+      }
       const existing = this.members.get(userId);
 
       if (existing === undefined) {
@@ -177,6 +249,7 @@ export function createGameRoom(deps: GameRoomDeps) {
     }
 
     override onLeave(client: Client) {
+      if (this.restoring?.sessions.delete(client.sessionId) === true) return;
       const member = this.memberOf(client);
       if (member === undefined) return; // an old socket closed after a takeover
       const isInMatch = this.phase === "playing" && this.matchUsers.includes(member.userId);
@@ -191,6 +264,11 @@ export function createGameRoom(deps: GameRoomDeps) {
       }
       this.log.info({ event: "left", userId: member.userId }, "left");
       this.afterPresenceChange();
+    }
+
+    /** A deploy or Ctrl+C: every browser is told to come back with its checkpoint. */
+    override onBeforeShutdown() {
+      void this.disconnect(CLOSE_CODES.RESTARTING);
     }
 
     override onDispose() {
@@ -231,7 +309,6 @@ export function createGameRoom(deps: GameRoomDeps) {
             this.onHostCommand(client, message);
           });
           return;
-        case "resume":
         case "voice_token":
         case "rematch_ready":
           this.sendError(client, "NOT_AVAILABLE_YET");
@@ -339,6 +416,7 @@ export function createGameRoom(deps: GameRoomDeps) {
         throw error;
       }
       this.match = match;
+      this.matchSetup = this.setup;
       this.matchUsers = order.map((m) => m.userId);
       this.matchPlayers = order.map(({ userId, nickname, color }) => ({ userId, nickname, color }));
       this.gamesStarted++;
@@ -453,6 +531,7 @@ export function createGameRoom(deps: GameRoomDeps) {
 
     private sendViews() {
       for (const client of this.clients) this.sendView(client);
+      this.markChanged();
     }
 
     private sendError(client: Client, code: ErrorCode) {
@@ -485,6 +564,157 @@ export function createGameRoom(deps: GameRoomDeps) {
         matchPlayers: this.matchPlayers,
       };
       this.broadcast("room", message);
+      this.markChanged();
+    }
+
+    // ── checkpoints ───────────────────────────────────────────────────────────────────────────
+
+    /** Seals once per burst of changes (a move changes the views and the room message together). */
+    private markChanged() {
+      if (this.isCheckpointDue) return;
+      this.isCheckpointDue = true;
+      queueMicrotask(() => {
+        this.isCheckpointDue = false;
+        const snapshot = this.snapshot();
+        if (snapshot === null) return;
+        const checkpoint = deps.sealer.seal(snapshot);
+        this.broadcast("checkpoint", { type: "checkpoint", checkpoint });
+      });
+    }
+
+    private snapshot(): RoomSnapshot | null {
+      if (this.hostId === null || this.restoring !== null) return null;
+      const record = this.match?.record();
+      const setup = this.matchSetup;
+      return {
+        bootId: deps.bootId,
+        roomId: this.roomId,
+        seq: ++this.checkpointSeq,
+        issuedAt: Date.now(),
+        hostId: this.hostId,
+        isLocked: this.isLocked,
+        bans: [...this.bans],
+        gamesStarted: this.gamesStarted,
+        phase: this.phase,
+        members: [...this.members.values()].map(({ userId, nickname, color, seat }) => ({
+          userId,
+          nickname,
+          color,
+          seat,
+        })),
+        setup:
+          this.setup === null ? null : { gameId: this.setup.gameId, config: this.setup.config },
+        match:
+          this.match === null || record === undefined || setup === null
+            ? null
+            : {
+                gameId: this.match.gameId,
+                moduleVersion: setup.moduleVersion,
+                config: setup.config,
+                seats: this.match.seats,
+                seed: Buffer.from(record.seed).toString("base64url"),
+                actions: [...record.actions],
+                users: [...this.matchUsers],
+                players: [...this.matchPlayers],
+              },
+      };
+    }
+
+    /** Every player seated in the newest checkpoint so far is back, so waiting longer gains nothing. */
+    private everyoneBack(): boolean {
+      if (this.restoring === null) return false;
+      const choice = chooseRestore(this.restoring.resumes, deps.bootId);
+      if (choice === null) return false;
+      const back = new Set(this.restoring.sessions.values());
+      return choice.snapshot.members.every((m) => m.seat === null || back.has(m.userId));
+    }
+
+    private restoreMatch(saved: MatchSnapshot): { setup: MatchSetup; match: Match } | null {
+      if (!isGameId(saved.gameId)) return null;
+      const module = GAMES[saved.gameId];
+      // Another version of the rules could replay the same moves differently.
+      if (module.version !== saved.moduleVersion) return null;
+      const setup = prepareMatch(module, saved.config);
+      const seed = new Uint8Array(Buffer.from(saved.seed, "base64url"));
+      const match = setup?.restore(saved.seats, seed, saved.actions) ?? null;
+      return setup === null || match === null ? null : { setup, match };
+    }
+
+    /** Rebuilds the room from the best checkpoint its players sent (design doc › Restoring safely). */
+    private finishRestore() {
+      const restoring = this.restoring;
+      if (restoring === null) return;
+      this.restoring = null;
+      restoring.timer.clear();
+      const choice = chooseRestore(restoring.resumes, deps.bootId);
+      if (choice === null) {
+        void this.disconnect(CLOSE_CODES.ROOM_CLOSED);
+        return;
+      }
+      const { snapshot, keepsGame } = choice;
+      const sessionOf = new Map(
+        [...restoring.sessions].map(([sessionId, userId]) => [userId, sessionId]),
+      );
+
+      this.hostId = snapshot.hostId;
+      this.isLocked = snapshot.isLocked;
+      for (const userId of snapshot.bans) this.bans.add(userId);
+      this.gamesStarted = snapshot.gamesStarted;
+      this.setup =
+        snapshot.setup !== null && isGameId(snapshot.setup.gameId)
+          ? prepareMatch(GAMES[snapshot.setup.gameId], snapshot.setup.config)
+          : null;
+      // A game in progress needs two of its players back; finished results come back as they were.
+      const wantsGame = keepsGame || snapshot.phase === "results";
+      const restored =
+        wantsGame && snapshot.match !== null ? this.restoreMatch(snapshot.match) : null;
+      if (restored !== null && snapshot.match !== null) {
+        this.match = restored.match;
+        this.matchSetup = restored.setup;
+        this.matchUsers = [...snapshot.match.users];
+        this.matchPlayers = [...snapshot.match.players];
+        this.phase = snapshot.phase;
+      } else {
+        this.phase = "lobby";
+      }
+
+      for (const saved of snapshot.members) {
+        const sessionId = sessionOf.get(saved.userId);
+        // A player who isn't back keeps their game seat (the server plays it), nothing else.
+        const isPlaying = this.phase === "playing" && this.matchUsers.includes(saved.userId);
+        if (sessionId === undefined && !isPlaying) continue;
+        this.members.set(saved.userId, {
+          ...saved,
+          sessionId: sessionId ?? "",
+          isConnected: sessionId !== undefined,
+        });
+      }
+      // Someone back whose own (older) checkpoint has them but the chosen one doesn't.
+      for (const [userId, sessionId] of sessionOf) {
+        if (this.members.has(userId)) continue;
+        const saved = restoring.resumes
+          .find((r) => r.userId === userId)
+          ?.snapshot.members.find((m) => m.userId === userId);
+        if (saved === undefined) continue;
+        const others = [...this.members.values()];
+        this.members.set(userId, {
+          ...saved,
+          color: pickColor(saved.color, userId, others),
+          seat: this.phase === "lobby" ? freeSeat(others, LIMITS.MAX_SEATS) : null,
+          sessionId,
+          isConnected: true,
+        });
+      }
+      if (this.members.get(this.hostId)?.isConnected !== true) {
+        this.hostId = nextHost([...this.members.values()], this.hostId) ?? this.hostId;
+      }
+      this.log.info(
+        { event: "checkpoint_restored", phase: this.phase, back: sessionOf.size },
+        "checkpoint_restored",
+      );
+      this.broadcastRoom();
+      this.sendViews();
+      if (this.phase === "playing") this.scheduleDeadline();
     }
   };
 }

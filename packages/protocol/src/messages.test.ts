@@ -6,7 +6,6 @@ describe("clientMessage", () => {
   it.each([
     { type: "intent", clientActionId: "a1", turnSeq: 3, action: { type: "call", n: 7 } },
     { type: "resync" },
-    { type: "resume", checkpoint: "abc" },
     { type: "host", kind: "start" },
     { type: "host", kind: "kick", target: "user_1" },
     { type: "host", kind: "config", gameId: "bingo", config: { size: 5 } },
@@ -26,10 +25,6 @@ describe("clientMessage", () => {
     ],
     ["no target on kick", { type: "host", kind: "kick" }],
     ["a target on start", { type: "host", kind: "start", target: "u" }],
-    [
-      "an over-long checkpoint",
-      { type: "resume", checkpoint: "x".repeat(LIMITS.CHECKPOINT_CHARS + 1) },
-    ],
   ])("when the message has %s, then it is rejected", (_, message) => {
     expect(clientMessage.safeParse(message).success).toBe(false);
   });

@@ -63,7 +63,10 @@ export const snapshotSchema = z.strictObject({
   /** Which server process sealed it; a checkpoint from the running process is never restored. */
   bootId: id,
   roomId: z.string().length(6),
-  /** Actions in the current game (0 in a lobby); the highest wins when players disagree. */
+  /**
+   * Counts every change to the room since it was created (not the game's own seq, which restarts
+   * each game); the highest wins when players hold different checkpoints.
+   */
   seq: z.number().int().nonnegative(),
   issuedAt: z.number().int().nonnegative(),
   hostId: id,

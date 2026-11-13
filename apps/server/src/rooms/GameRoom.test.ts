@@ -1,9 +1,11 @@
+import { randomBytes } from "node:crypto";
 import { defineRoom, defineServer, type Server } from "@colyseus/core";
 import { WebSocketTransport } from "@colyseus/ws-transport";
 import { Client, type Room } from "@colyseus/sdk";
 import { CLOSE_CODES, joinError, roomCodeInput, type JoinError } from "@heartroom/protocol";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createTokenVerifier } from "../auth/verify-token.ts";
+import { createSealer } from "../checkpoint.ts";
 import { createLogger } from "../logger.ts";
 import { createGameRoom } from "./GameRoom.ts";
 
@@ -14,6 +16,8 @@ import { createGameRoom } from "./GameRoom.ts";
 
 const PORT = 2651;
 let server: Server;
+
+const sealer = createSealer({ current: randomBytes(32) });
 
 beforeAll(async () => {
   server = defineServer({
@@ -27,6 +31,8 @@ beforeAll(async () => {
             keys: () => Promise.reject(new Error("dev tokens only")),
           }),
           log: createLogger("silent"),
+          sealer,
+          bootId: "test-boot",
         }),
       ),
     },
