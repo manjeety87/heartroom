@@ -105,45 +105,43 @@ _Update this file at the end of every working session (any agent, any device)._
       received yet (need a public URL). 338 tests. Restart `pnpm dev` once so the local database gets
       `voice_usage`.
 
-## Next
+## Owner to-do (only the owner can do these; tick them here when done)
 
-0. **Voice needs LiveKit keys (owner):** create a free project at cloud.livekit.io, then put
-   `LIVEKIT_URL` (wss://…), `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` in `.env.local` at the repo root
-   (git-ignored) and restart `pnpm dev`. Try on a laptop first (two browsers, `localhost:3000`): Join
-   voice on both, Mic on, talk; host blocks the other's mic (they go silent and see the banner), then
-   allows it. **Phones:** the mic needs https; plain `http://<laptop-ip>` can only listen (the dock says
-   so). Phone mic testing needs an https tunnel or the deployed site.
-   Webhooks (minutes metering) only arrive at a public URL: after a deploy, set the webhook in the
-   LiveKit project to `https://<game server>/livekit/webhook`. Locally, voice works without them.
-   **Phase 3 left:** spectators' voice dropped after 3 min away from the room screen (needs a client
-   presence message, also wanted for "away"); the Phase 3 check on a real Android phone and iPhone (Q4).
-1. **Owner check of a server restart** (not tried in a browser yet): in a game between two browsers,
-   press Ctrl+C in the game-server terminal and start it again within a minute. Both screens should
-   show "Bringing your game back…" and return to the same board, calls and turn. With only one
-   browser open, the room comes back to its lobby instead.
-2. **Owner check of online rooms** on two phones (or a phone + laptop, different browsers so they are
-   different guests): run `pnpm --filter @heartroom/server dev` and the site on port 3000
-   (`build` + `start`), open `/play` on one, create a room, open the link on the other. Check: join with
-   18+, lobby, a 5×5 game, results, rematch, refresh mid-game (same seat), turn Wi-Fi off for 10 s
-   (reconnecting bar, then back), Leave.
-3. **Owner check of the rest of the redesign** on a phone (Start game already confirmed): Settings (name, colour, every theme in light and dark,
-   Make your own, text size), a game at 5×5 and 8×8 (two-tap call), results, History step-through,
-   sounds and vibration. Same commands as before (`build`, then `start`, open `/play/bingo`).
-4. **Phase 2a**, next steps in order:
-   - **Before launch (needs Q5):** create the Neon project with dev/production branches, set
-     `DATABASE_URL`/`DATABASE_URL_DIRECT`, run `pnpm db:migrate`. Not built yet: the daily job that
-     clears `matches.actions` after 30 days, "no human for 3 turns → abandoned", and the
-     "unranked if auto-played" rule only counts the server's moves per seat.
-   - Room gaps left: views aren't zod-checked (no `viewSchema` on the module yet); no custom grid size
-     in the room (presets only).
-   - Not built yet in the room (answer `NOT_AVAILABLE_YET`): knocks (late joiners are spectators
-     for now), new code, mute/block mic (Phase 3), rematch_ready. "Away" means
-     disconnected; a hidden tab doesn't count yet (needs a client presence message). Unknown codes
-     aren't rate-limited (Colyseus answers before `onAuth`): limit the matchmake route before launch. Run the server (any shell, no env needed in development): `pnpm --filter @heartroom/server dev`.
-   The room must honour
-   `Deadline.key` / `onlyWhenAway`, give each joiner a free player colour, and keep names unique
-   per room (`docs/design/ui-system.md` › Names, Player colours).
-5. Still open: Q1 (pricing), Q3 (name check), Q4 (iOS voice), Q5 (server host).
+- [ ] **LiveKit keys:** cloud.livekit.io → new project → Settings → API Keys → Create key (the secret is
+      shown once). Put `LIVEKIT_URL` (wss://…), `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` in `.env.local`
+      at the repo root (git-ignored; never paste the secret anywhere else), restart `pnpm dev`. The game
+      server log should say `"event":"voice","enabled":true`.
+- [ ] **Restart `pnpm dev` once** so the local database gets the `voice_usage` table (migration 0003).
+- [ ] **Voice on a laptop** (needs the keys): two browsers at `localhost:3000`, same room, Join voice on
+      both, Mic on, talk. Host blocks the other's mic (silent + banner), then allows it. Leave voice.
+- [ ] **Voice on phones** (Phase 3 check, Q4): Android Chrome and an iPhone. The mic needs https, so plain
+      `http://<laptop-ip>` can only listen; use an https tunnel or the deployed site. On iPhone check
+      "Tap to hear voice" and what happens after the tab goes to the background and back.
+- [ ] **Server restart in a browser:** in a game between two browsers, Ctrl+C the game server and start
+      it again within a minute. Both should show "Bringing your game back…" and return to the same
+      board. With only one browser open, the room comes back to its lobby.
+- [ ] **Online rooms on two phones** (or phone + laptop, different browsers): server dev + site
+      `build` + `start` on port 3000, `/play` → create a room → open the link on the other. Join with 18+,
+      lobby, Fast timer, a 5×5 game, results, rematch, refresh mid-game (same seat), Wi-Fi off 10 s
+      (reconnecting bar, then back), Leave.
+- [ ] **Rest of the redesign on a phone:** Settings (name, colour, every theme light/dark, Make your own,
+      text size), 5×5 and 8×8 (two-tap call), results, History step-through, sounds and vibration.
+- [ ] **Before launch:** answer Q1 (pricing), Q3 (name check), Q5 (server host); then create the Neon
+      project (dev/production branches), set `DATABASE_URL`/`DATABASE_URL_DIRECT`, run `pnpm db:migrate`;
+      after the deploy set the LiveKit webhook to `https://<game server>/livekit/webhook` and pick
+      `VOICE_MONTHLY_CAP_MINUTES`.
+
+## Next (code, in order)
+
+1. **Presence** (in progress 2026-11-13): the browser says when the room tab is hidden. Spectators
+   hidden for 3 min lose their voice (Phase 3), and a hidden tab counts as away for the turn clock.
+2. **Phase 4: Google login + history.**
+3. Gaps to close before launch: the daily job that clears `matches.actions` after 30 days; "no human
+   for 3 turns → abandoned"; "unranked if auto-played" only counts the server's moves per seat; views
+   aren't zod-checked (no `viewSchema` yet); no custom grid size in the room (presets only); unknown
+   codes aren't rate-limited (Colyseus answers before `onAuth`): limit the matchmake route.
+4. Not built in the room yet (answer `NOT_AVAILABLE_YET`): knocks (late joiners are spectators for now),
+   new code, the host's "mute" (block mic covers it), rematch_ready.
 
 ## Phases
 
