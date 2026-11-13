@@ -91,4 +91,10 @@ Append-only. One line per decision: date, the decision, and the reason. Details 
 | 2026-11-13 | Guests have online history too (from their guest row); signing in only makes it follow them | G9: history isn't a reward for signing up, and nothing is lost when they do |
 | 2026-11-13 | Google scopes are `openid email` only; `mapProfileToUser` drops the name and picture | Data minimisation (DECISIONS 2026-11-10) |
 | 2026-11-13 | `match_players.nickname` stores the room name per seat | History must name people who have no account |
+| 2026-11-13 | Word Guess: both guess at their own pace (not turns); fewer guesses wins; same count or nobody solving = draw ("same time" can't be measured by pure rules); a player may give up | Simultaneous play keeps both busy; draws follow the design's `result = draw` |
+| 2026-11-13 | Word Guess default guesses = word length (5 letters → 5); classic (ranked) = 5/5 | CUJ 8 |
+| 2026-11-13 | Word lists = SCOWL via `wordlist-english` (all English spellings): secrets ≤ size 50, guesses ≤ size 70 (not ENABLE) | One maintained, permissively licensed npm source with frequency sizes; no file downloads |
+| 2026-11-13 | Word lists are injected into the module (`createWordGuess(words)`) and loaded only by the server | Keeps 1.5 MB of lists out of browser bundles while the rules stay pure |
+| 2026-11-13 | Word Guess spectators see mark patterns but no letters until the end | Words + marks would let a spectator on voice spell out a secret |
+| 2026-11-13 | Platform change for game #2 = the registry line plus `gameById()` (module types erased for the room) | With two games `GAMES[id]` is a union the room can't call generically; contract now considered frozen (design rule 4) |
 | 2026-11-13 | The host's own "mute" command stays `NOT_AVAILABLE_YET`; mute is each person's own mic button | Block mic covers safety; muting someone else's track adds nothing a block doesn't |

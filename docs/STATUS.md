@@ -2,8 +2,8 @@
 
 _Update this file at the end of every working session (any agent, any device)._
 
-**Last updated:** 2026-11-13 (Phase 4: Google sign-in + online history)
-**Phase:** Phases 2–4 code done (owner checks pending, see the owner to-do) → next: **Phase 5** (Word Guess).
+**Last updated:** 2026-11-13 (Phase 5: Word Guess)
+**Phase:** Phases 2–5 code done (owner checks pending, see the owner to-do) → next: **Phase 6** (Leaderboard).
 
 ## Done
 
@@ -116,6 +116,15 @@ _Update this file at the end of every working session (any agent, any device)._
       50, everyone's names; totals per game, shared wins as 1/k). Settings › Account (guest / Google,
       18+ box, Sign out) and History › Online. Checked with a production build against the local
       database; real Google sign-in not tried (needs the OAuth client). 343 tests.
+- [x] **Phase 5: Word Guess** (2026-11-13): `packages/games/word-guess` (2 players; set a 4–7 letter
+      everyday word, guess the other's at your own pace, guesses = length…10; two-pass feedback; fewer
+      guesses wins, equal = draw; give up; 60 s setup clock with a server-picked word, away guessers get a
+      guess after 60 s). Marks are stored at guess time so views never read the other secret; spectators
+      see mark patterns only; `assertNoLeak` passes. Word lists: SCOWL via `wordlist-english`, loaded on
+      the server only (`@heartroom/word-guess/server`). UI: `WordTile` (colour + shape + aria-label),
+      `GameKeyboard` (on-screen + physical), `WordGuessGame`. Registry line + `gameById` (types erased for
+      the room). Lobby game picker + per-game settings. Played in a production build against the real
+      server with a scripted second player. 359 tests.
 
 ## Owner to-do (only the owner can do these; tick them here when done)
 
@@ -149,6 +158,8 @@ _Update this file at the end of every working session (any agent, any device)._
       `build` + `start` on port 3000, `/play` → create a room → open the link on the other. Join with 18+,
       lobby, Fast timer, a 5×5 game, results, rematch, refresh mid-game (same seat), Wi-Fi off 10 s
       (reconnecting bar, then back), Leave.
+- [ ] **Word Guess on two devices:** pick Word Guess in the lobby, both choose a word, guess, give up once,
+      rematch. Check the tiles are readable in light and dark themes and the keyboard fits a phone.
 - [ ] **Rest of the redesign on a phone:** Settings (name, colour, every theme light/dark, Make your own,
       text size), 5×5 and 8×8 (two-tap call), results, History step-through, sounds and vibration.
 - [ ] **Before launch:** answer Q1 (pricing), Q3 (name check), Q5 (server host); then create the Neon
@@ -158,12 +169,15 @@ _Update this file at the end of every working session (any agent, any device)._
 
 ## Next (code, in order)
 
-1. **Phase 5: Word Guess** (after the owner's Google check closes Phase 4).
-2. Gaps to close before launch: the daily job that clears `matches.actions` after 30 days; "no human
+1. **Phase 6: Leaderboard.**
+2. Word Guess polish: tile flip motion (60 ms stagger, shape then colour) and a marks legend one tap
+   away (design-direction › Word Guess); the refused-word message can't yet say *why* (the server
+   sends only RULE_VIOLATION).
+3. Gaps to close before launch: the daily job that clears `matches.actions` after 30 days; "no human
    for 3 turns → abandoned"; "unranked if auto-played" only counts the server's moves per seat; views
    aren't zod-checked (no `viewSchema` yet); no custom grid size in the room (presets only); unknown
    codes aren't rate-limited (Colyseus answers before `onAuth`): limit the matchmake route.
-3. Not built in the room yet (answer `NOT_AVAILABLE_YET`): knocks (late joiners are spectators for now),
+4. Not built in the room yet (answer `NOT_AVAILABLE_YET`): knocks (late joiners are spectators for now),
    new code, the host's "mute" (block mic covers it), rematch_ready.
 
 ## Phases
@@ -175,7 +189,7 @@ _Update this file at the end of every working session (any agent, any device)._
 | 2 | Rooms (Colyseus) + online Bingo + crash recovery | code done 2026-11-13; owner phone checks pending |
 | 3 | Voice (LiveKit) + host powers | code done 2026-11-13; owner voice checks pending (needs LiveKit keys) |
 | 4 | Google login + history | code done 2026-11-13; owner Google check pending |
-| 5 | Word Guess | not started |
+| 5 | Word Guess | done 2026-11-13 (owner check on phones pending) |
 | 6 | Leaderboard | not started |
 | 7 | Admin dashboard | not started |
 

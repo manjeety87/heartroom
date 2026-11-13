@@ -79,6 +79,10 @@ Storage keys: `heartroom.theme`, `heartroom.mode`, `heartroom.textSize`, `heartr
 | | `features/room/*` | `PlayStart`, `NameStep` (name + 18+ once), `RoomScreen`, `Lobby`, `RoomGame`, `ShareRoom`, `TurnClock` |
 | | `features/settings/AccountSection` | Guest / Google states, 18+ box before "Sign in with Google", Sign out; loading, error and failed-return states |
 | | `features/history/OnlineGames` | Totals chips per game, then online games ("Shared win with Riya, Kabir", grid, date); empty → Play with friends |
+| `@heartroom/word-guess/ui` | `WordTile` / `WordRow` | Right place = pen + tick notch; in word = highlighter + ink ring; not in word = well + strike; aria-label per tile |
+| | `GameKeyboard` | On-screen QWERTY (Enter, ⌫) + physical keys; keys show the best known mark |
+| | `WordGuessGame` | Choose a word → guess theirs + watch theirs live (own word behind Show/Hide) → reveal; spectator = mark patterns |
+| | `features/room/GameSettings` | Game picker + per-game settings (Bingo presets/clock, Word Guess length/guesses) |
 | | `features/voice/VoiceDock` | Sticky bottom dock: Join voice (mic off) → Mic / Sound / Leave voice; a chip per person in voice (speaking ring + "speaking" / "mic off" in words); host Block mic / Allow mic on each chip; blocked banner; "Tap to hear voice" (iOS) |
 | | `ErrorState` | Crash screen with one way forward |
 
