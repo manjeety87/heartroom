@@ -77,6 +77,8 @@ Storage keys: `heartroom.theme`, `heartroom.mode`, `heartroom.textSize`, `heartr
 | | `SetupBar` | Tap in order / Shuffle (keeps tapped numbers) / Clear / Ready |
 | `apps/web` | `AppShell` | Translucent app bar + system-mode follower |
 | | `features/room/*` | `PlayStart`, `NameStep` (name + 18+ once), `RoomScreen`, `Lobby`, `RoomGame`, `ShareRoom`, `TurnClock` |
+| | `features/settings/AccountSection` | Guest / Google states, 18+ box before "Sign in with Google", Sign out; loading, error and failed-return states |
+| | `features/history/OnlineGames` | Totals chips per game, then online games ("Shared win with Riya, Kabir", grid, date); empty → Play with friends |
 | | `features/voice/VoiceDock` | Sticky bottom dock: Join voice (mic off) → Mic / Sound / Leave voice; a chip per person in voice (speaking ring + "speaking" / "mic off" in words); host Block mic / Allow mic on each chip; blocked banner; "Tap to hear voice" (iOS) |
 | | `ErrorState` | Crash screen with one way forward |
 

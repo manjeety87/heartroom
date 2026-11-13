@@ -87,4 +87,8 @@ Append-only. One line per decision: date, the decision, and the reason. Details 
 | 2026-11-13 | The webhook route lives on the game server (`/livekit/webhook`), and a join to a room that no longer exists is removed | The game server already holds the rooms and the LiveKit secret; voice must not outlive its room |
 | 2026-11-13 | A hidden room tab (Page Visibility) counts as away, like a disconnect | "Away only" should cover switching to WhatsApp mid-game, not only a dropped connection |
 | 2026-11-13 | Only spectators lose voice after 3 min hidden; players keep it | Players in a game are still in the room; a spectator's open tab shouldn't burn voice minutes |
+| 2026-11-13 | Google sign-in lives in Settings › Account (no separate profile page); online history and per-game totals live in History | One place for each: the account in Settings, every game in History |
+| 2026-11-13 | Guests have online history too (from their guest row); signing in only makes it follow them | G9: history isn't a reward for signing up, and nothing is lost when they do |
+| 2026-11-13 | Google scopes are `openid email` only; `mapProfileToUser` drops the name and picture | Data minimisation (DECISIONS 2026-11-10) |
+| 2026-11-13 | `match_players.nickname` stores the room name per seat | History must name people who have no account |
 | 2026-11-13 | The host's own "mute" command stays `NOT_AVAILABLE_YET`; mute is each person's own mic button | Block mic covers safety; muting someone else's track adds nothing a block doesn't |

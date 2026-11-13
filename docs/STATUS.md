@@ -2,8 +2,8 @@
 
 _Update this file at the end of every working session (any agent, any device)._
 
-**Last updated:** 2026-11-13 (presence; Phase 3 code done)
-**Phase:** Phase 2 and Phase 3 code done (owner checks pending, see the owner to-do) → next: **Phase 4** (Google login + history).
+**Last updated:** 2026-11-13 (Phase 4: Google sign-in + online history)
+**Phase:** Phases 2–4 code done (owner checks pending, see the owner to-do) → next: **Phase 5** (Word Guess).
 
 ## Done
 
@@ -108,6 +108,14 @@ _Update this file at the end of every working session (any agent, any device)._
       tab is away: an "away only" turn clock runs for that player and pauses when they're back. A
       spectator hidden for 3 min is removed from voice; players keep theirs. 339 tests. Phase 3 code is
       done; the phone voice check (owner to-do) closes it.
+- [x] **Phase 4: Google sign-in + online history** (2026-11-13): Better Auth Google provider when
+      `GOOGLE_CLIENT_ID`/`_SECRET` are set (scopes `openid email`; Google name and photo never stored).
+      A guest who signs in keeps their games: `lib/auth/link.ts` moves `match_players` + `voice_usage`
+      (and the 18+ answer) to the account in one transaction before the guest row is deleted, also into
+      an existing account. `match_players.nickname` (migration 0004). `GET /api/history` (own games, newest
+      50, everyone's names; totals per game, shared wins as 1/k). Settings › Account (guest / Google,
+      18+ box, Sign out) and History › Online. Checked with a production build against the local
+      database; real Google sign-in not tried (needs the OAuth client). 343 tests.
 
 ## Owner to-do (only the owner can do these; tick them here when done)
 
@@ -115,7 +123,20 @@ _Update this file at the end of every working session (any agent, any device)._
       shown once). Put `LIVEKIT_URL` (wss://…), `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` in `.env.local`
       at the repo root (git-ignored; never paste the secret anywhere else), restart `pnpm dev`. The game
       server log should say `"event":"voice","enabled":true`.
-- [ ] **Restart `pnpm dev` once** so the local database gets the `voice_usage` table (migration 0003).
+- [ ] **Restart `pnpm dev` once** (Ctrl+C, then `pnpm dev`): the running site still has an old copy of
+      the auth code, so History's "Online" part shows "Couldn't load" until then. (Migrations 0003 and
+      0004 are already applied to the local database.)
+- [ ] **Google OAuth client** (for "Sign in with Google"): console.cloud.google.com → new project →
+      APIs & Services → OAuth consent screen (External, app name Heartroom, your email; scopes: only
+      `openid` and `email`) → Credentials → Create credentials → OAuth client ID → Web application.
+      Authorised JavaScript origin `http://localhost:3000`; authorised redirect URI
+      `http://localhost:3000/api/auth/callback/google` (add the deployed site's origin and
+      `https://<site>/api/auth/callback/google` later). Put `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+      in `.env.local` (never anywhere else) and restart `pnpm dev`. Google sign-in works only on
+      `localhost` or https (not on `http://<laptop-ip>` from a phone).
+- [ ] **Google sign-in check** (needs the client): play a room game as a guest, then Settings → tick 18+ →
+      Sign in with Google → back on Settings it shows your email, and History › Online still has that
+      game. Sign out, play another game as a new guest, sign in again: both games are in the account.
 - [ ] **Voice on a laptop** (needs the keys): two browsers at `localhost:3000`, same room, Join voice on
       both, Mic on, talk. Host blocks the other's mic (silent + banner), then allows it. Leave voice.
 - [ ] **Voice on phones** (Phase 3 check, Q4): Android Chrome and an iPhone. The mic needs https, so plain
@@ -137,7 +158,7 @@ _Update this file at the end of every working session (any agent, any device)._
 
 ## Next (code, in order)
 
-1. **Phase 4: Google login + history.**
+1. **Phase 5: Word Guess** (after the owner's Google check closes Phase 4).
 2. Gaps to close before launch: the daily job that clears `matches.actions` after 30 days; "no human
    for 3 turns → abandoned"; "unranked if auto-played" only counts the server's moves per seat; views
    aren't zod-checked (no `viewSchema` yet); no custom grid size in the room (presets only); unknown
@@ -153,7 +174,7 @@ _Update this file at the end of every working session (any agent, any device)._
 | 1 | Bingo rules + vs Computer (offline) | done 2026-11-11 (+ UI redesign) |
 | 2 | Rooms (Colyseus) + online Bingo + crash recovery | code done 2026-11-13; owner phone checks pending |
 | 3 | Voice (LiveKit) + host powers | code done 2026-11-13; owner voice checks pending (needs LiveKit keys) |
-| 4 | Google login + history | not started |
+| 4 | Google login + history | code done 2026-11-13; owner Google check pending |
 | 5 | Word Guess | not started |
 | 6 | Leaderboard | not started |
 | 7 | Admin dashboard | not started |
