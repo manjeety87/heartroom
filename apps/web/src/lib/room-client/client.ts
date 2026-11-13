@@ -34,6 +34,10 @@ export const useRoom = <T>(selector: (state: RoomState) => T): T => useStore(sto
 
 let room: Room | null = null;
 let isLeaving = false;
+/** The open "Join voice" request: answered by a voice_token, or by VOICE_UNAVAILABLE. */
+let voiceRequest: ((answer: VoiceAnswer) => void) | null = null;
+
+export type VoiceAnswer = { readonly token: string; readonly url: string } | null;
 
 /** Development serves the game server on port 2567 of the same machine, LAN phones included. */
 function serverUrl(): string {
@@ -158,6 +162,8 @@ export async function enterRoom(
     const parsed = serverMessage.safeParse(payload);
     if (!parsed.success) return; // Dropped: an older or newer server speaking another shape.
     store.setState((state) => applyServerMessage(state, parsed.data, Date.now()));
+    if (parsed.data.type === "voice_token") answerVoice(parsed.data);
+    if (parsed.data.type === "error" && parsed.data.code === "VOICE_UNAVAILABLE") answerVoice(null);
     if (parsed.data.type === "checkpoint") {
       rememberRoom(joined.roomId, { ...options, resume: parsed.data.checkpoint });
     }
@@ -212,6 +218,31 @@ export function sendIntent(action: unknown): void {
 export function sendHost(command: HostMessage): void {
   if (room === null || store.getState().status !== "live") return;
   room.send("host", command);
+}
+
+function answerVoice(answer: VoiceAnswer) {
+  voiceRequest?.(answer);
+  voiceRequest = null;
+}
+
+/**
+ * Asks the room for a LiveKit token. Null when voice is unavailable, the room isn't connected, or no
+ * answer comes in 10 s (a token request never waits on the game).
+ */
+export function requestVoiceToken(): Promise<VoiceAnswer> {
+  if (room === null || store.getState().status !== "live") return Promise.resolve(null);
+  answerVoice(null); // only one request at a time; a newer tap replaces an older one
+  const asking = room;
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(() => {
+      answerVoice(null);
+    }, 10_000);
+    voiceRequest = (answer) => {
+      window.clearTimeout(timer);
+      resolve(answer);
+    };
+    asking.send("voice_token", { type: "voice_token" });
+  });
 }
 
 /** Leaves on purpose: the seat is given up at once and a refresh won't rejoin. */

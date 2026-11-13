@@ -52,6 +52,16 @@ describe("applyServerMessage", () => {
     expect(state.notice?.id).toBe(2);
   });
 
+  it("when voice is refused, then pending moves and the game's notice are left alone", () => {
+    const pending = { ...live, outbox: [{ clientActionId: "a", turnSeq: 1, action: {} }] };
+    const state = applyServerMessage(
+      pending,
+      { type: "error", code: "VOICE_UNAVAILABLE", message: "x" },
+      0,
+    );
+    expect(state).toBe(pending);
+  });
+
   it("when the game moves on after a refusal, then the refusal is cleared; a resent view keeps it", () => {
     let state = applyServerMessage(live, { type: "game", seq: 4, view: "v" }, 0);
     state = applyServerMessage(state, { type: "error", code: "STALE_TURN", message: "x" }, 0);

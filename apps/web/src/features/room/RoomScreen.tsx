@@ -11,6 +11,7 @@ import { Lobby } from "./Lobby.tsx";
 import { NameStep } from "./NameStep.tsx";
 import { RoomGame } from "./RoomGame.tsx";
 import { ShareRoom } from "./ShareRoom.tsx";
+import { VoiceDock } from "@/features/voice/VoiceDock";
 
 /** sessionStorage has no change event within a tab; the value is read again on every render. */
 const noSubscribe = () => () => undefined;
@@ -118,6 +119,7 @@ export function RoomScreen({ code }: { readonly code: string }) {
       {(isGameOn || isResults) && <RoomGame room={room} me={me} />}
       {!isGameOn && <Lobby room={room} me={me} isBetweenGames={isResults} />}
       <LeaveButton isMidGame={isGameOn} />
+      <VoiceDock room={room} me={me} />
     </div>
   );
 }

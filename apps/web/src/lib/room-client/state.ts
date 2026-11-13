@@ -104,6 +104,8 @@ export function applyServerMessage(
         outbox: state.outbox.filter((p) => p.clientActionId !== message.clientActionId),
       };
     case "error":
+      // Voice has its own channel back (`requestVoiceToken`); it never touches the game's moves.
+      if (message.code === "VOICE_UNAVAILABLE") return state;
       // The server answers in order and names no intent, so a refusal ends everything pending:
       // the refused move must not be resent, and anything after it was made from an outdated view.
       return {

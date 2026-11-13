@@ -438,19 +438,19 @@ export function createGameRoom(deps: GameRoomDeps) {
 
     // ── voice ─────────────────────────────────────────────────────────────────────────────────
 
-    /** A short LiveKit token for this person in this room; voice never blocks the game. */
+    /**
+     * A short LiveKit token for this person in this room; voice never blocks the game. Every refusal
+     * is VOICE_UNAVAILABLE, so the browser can tell it apart from a refused move.
+     */
     private async onVoiceToken(client: Client) {
       const member = this.memberOf(client);
-      if (member === undefined || this.restoring !== null) {
-        this.sendError(client, "RULE_VIOLATION");
-        return;
-      }
-      if (!deps.voice.isEnabled) {
+      if (
+        member === undefined ||
+        this.restoring !== null ||
+        !deps.voice.isEnabled ||
+        !voiceTokensPerUser.take(member.userId)
+      ) {
         this.sendError(client, "VOICE_UNAVAILABLE");
-        return;
-      }
-      if (!voiceTokensPerUser.take(member.userId)) {
-        this.sendError(client, "RATE_LIMITED");
         return;
       }
       try {
