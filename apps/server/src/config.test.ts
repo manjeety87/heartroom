@@ -40,9 +40,20 @@ describe("parseConfig", () => {
   });
 
   it("when production has no JWKS URL, then refuses to boot", () => {
-    const env = { NODE_ENV: "production", ALLOWED_ORIGINS: "https://heartroom.test" } as const;
+    const env = {
+      NODE_ENV: "production",
+      ALLOWED_ORIGINS: "https://heartroom.test",
+      CHECKPOINT_KEY: Buffer.alloc(32, 7).toString("base64"),
+    } as const;
     expect(() => parseConfig(env)).toThrow(/AUTH_JWKS_URL: required/);
     const withKeys = { ...env, AUTH_JWKS_URL: "https://heartroom.test/api/auth/jwks" };
     expect(parseConfig(withKeys).AUTH_JWKS_URL).toBe("https://heartroom.test/api/auth/jwks");
+  });
+
+  it("when the checkpoint key is missing in production or not 32 bytes, then refuses to boot", () => {
+    expect(() => parseConfig({ NODE_ENV: "production" })).toThrow(/CHECKPOINT_KEY: required/);
+    const short = Buffer.alloc(16, 1).toString("base64");
+    expect(() => parseConfig({ CHECKPOINT_KEY: short })).toThrow(/CHECKPOINT_KEY: must be base64/);
+    expect(parseConfig({}).CHECKPOINT_KEY).toHaveLength(32);
   });
 });

@@ -22,6 +22,17 @@ const originList = z
 
 const DEV_JWKS_URL = "http://localhost:3000/api/auth/jwks";
 
+/**
+ * Only for development, where it protects nothing but local test games; it is fixed (not random per
+ * boot) so a restarted dev server can still open the checkpoints the browsers hold. Public on purpose.
+ */
+const DEV_CHECKPOINT_KEY = Buffer.alloc(32, "heartroom-dev-checkpoint-key");
+
+const checkpointKey = z
+  .string()
+  .transform((raw) => Buffer.from(raw, "base64"))
+  .refine((key) => key.length === 32, "must be base64 of exactly 32 bytes");
+
 const envSchema = z
   .object({
     NODE_ENV: optional(z.enum(["development", "test", "production"])).default("development"),
@@ -36,14 +47,19 @@ const envSchema = z
      * a deploy must name it, because a wrong guess would lock every player out.
      */
     AUTH_JWKS_URL: optional(z.url()),
+    /** AES-256-GCM key for crash-recovery checkpoints. Rotation: move the old one to _PREVIOUS. */
+    CHECKPOINT_KEY: optional(checkpointKey),
+    CHECKPOINT_KEY_PREVIOUS: optional(checkpointKey),
     LOG_LEVEL: optional(z.enum(["fatal", "error", "warn", "info", "debug", "trace"])).default(
       "info",
     ),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== "production") return;
-    if (env.AUTH_JWKS_URL === undefined) {
-      ctx.addIssue({ code: "custom", path: ["AUTH_JWKS_URL"], message: "required in production" });
+    for (const key of ["AUTH_JWKS_URL", "CHECKPOINT_KEY"] as const) {
+      if (env[key] === undefined) {
+        ctx.addIssue({ code: "custom", path: [key], message: "required in production" });
+      }
     }
     if (env.ALLOWED_ORIGINS === undefined) {
       ctx.addIssue({
@@ -63,6 +79,7 @@ const envSchema = z
     ...env,
     ALLOWED_ORIGINS: env.ALLOWED_ORIGINS ?? ["*"],
     AUTH_JWKS_URL: env.AUTH_JWKS_URL ?? DEV_JWKS_URL,
+    CHECKPOINT_KEY: env.CHECKPOINT_KEY ?? DEV_CHECKPOINT_KEY,
   }));
 
 export type Config = Readonly<z.infer<typeof envSchema> & { isProduction: boolean }>;
