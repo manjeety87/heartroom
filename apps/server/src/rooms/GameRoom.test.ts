@@ -166,7 +166,12 @@ describe("GameRoom", () => {
     a.send({ type: "host", kind: "config", gameId: "bingo", config: QUICK });
     await a.waitFor("room", (r) => r["gameId"] === "bingo");
     a.send({ type: "host", kind: "start" });
-    await a.waitFor("room", (r) => r["phase"] === "playing");
+    const playing = await a.waitFor("room", (r) => r["phase"] === "playing");
+    // Names per game seat, so each browser can label the board without knowing the rotation.
+    expect(playing["matchPlayers"]).toEqual([
+      { userId: "dev-g1", nickname: "Asha", color: expect.any(String) as unknown },
+      { userId: "dev-g2", nickname: "Bilal", color: expect.any(String) as unknown },
+    ]);
 
     let seq = 0;
     let id = 0;

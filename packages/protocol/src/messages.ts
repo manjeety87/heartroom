@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ERROR_CODES } from "./errors.ts";
+import { nicknameProblem } from "./nickname-filter.ts";
 import { SEAT_COLOR_IDS } from "./seat-colors.ts";
 
 /**
@@ -24,8 +25,8 @@ const nickname = z.string().min(1).max(LIMITS.NICKNAME_CHARS);
 
 /**
  * What a person types as their name: trimmed, inner spaces collapsed, NFC-normalised (so "é" typed
- * two ways is one name), then 1–20 characters with at least one letter or digit. Uniqueness is per
- * room and is decided by the server when someone joins.
+ * two ways is one name), then 1–20 characters with at least one letter or digit, and nothing the
+ * name filter blocks or reserves. Uniqueness is per room and is decided by the server on join.
  */
 export const nicknameInput = z
   .string()
@@ -35,7 +36,18 @@ export const nicknameInput = z
       .string()
       .min(1, "Type a name.")
       .max(LIMITS.NICKNAME_CHARS, `Keep it to ${String(LIMITS.NICKNAME_CHARS)} characters.`)
-      .regex(/[\p{L}\p{N}]/u, "Use at least one letter or number."),
+      .regex(/[\p{L}\p{N}]/u, "Use at least one letter or number.")
+      .superRefine((name, ctx) => {
+        const problem = nicknameProblem(name);
+        if (problem === null) return;
+        ctx.addIssue({
+          code: "custom",
+          message:
+            problem === "blocked"
+              ? "Pick a friendlier name."
+              : "That name is reserved. Pick another.",
+        });
+      }),
   );
 const seq = z.number().int().nonnegative();
 
@@ -137,6 +149,15 @@ export const roomMessage = z.strictObject({
   gameId: id.nullable(),
   seats: z.array(seatInfo).max(LIMITS.MAX_SEATS),
   spectators: z.array(z.strictObject({ userId: id, nickname })).max(LIMITS.MAX_SPECTATORS),
+  /**
+   * Who plays the current or last game, in the game's own seat order (`view.you`, `view.turn` and
+   * `callers` index this list). It differs from `seats` because the room rotates who goes first,
+   * and it keeps a player who left mid-game so results can still name them. Empty before a game.
+   */
+  matchPlayers: z
+    .array(z.strictObject({ userId: id, nickname, color: z.enum(SEAT_COLOR_IDS) }))
+    .max(LIMITS.MAX_SEATS)
+    .optional(),
 });
 
 /** One viewer's `view()` after action `seq`. A gap in `seq` means the client sends `resync`. */

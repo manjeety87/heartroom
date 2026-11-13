@@ -78,6 +78,8 @@ export function createGameRoom(deps: GameRoomDeps) {
     private match: Match | null = null;
     /** `matchUsers[seat]` = the userId playing match seat `seat`. */
     private matchUsers: string[] = [];
+    /** Name and colour per match seat, kept for results after a player leaves. */
+    private matchPlayers: NonNullable<RoomMessage["matchPlayers"]> = [];
     private gamesStarted = 0;
     private deadlineClock: DeadlineClock | null = null;
     private deadlineTimer: { clear(): void } | null = null;
@@ -338,6 +340,7 @@ export function createGameRoom(deps: GameRoomDeps) {
       }
       this.match = match;
       this.matchUsers = order.map((m) => m.userId);
+      this.matchPlayers = order.map(({ userId, nickname, color }) => ({ userId, nickname, color }));
       this.gamesStarted++;
       this.phase = "playing";
       this.deadlineClock = null;
@@ -479,6 +482,7 @@ export function createGameRoom(deps: GameRoomDeps) {
         spectators: members
           .filter((m) => m.seat === null)
           .map((m) => ({ userId: m.userId, nickname: m.nickname })),
+        matchPlayers: this.matchPlayers,
       };
       this.broadcast("room", message);
     }
