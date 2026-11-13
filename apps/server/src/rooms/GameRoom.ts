@@ -7,6 +7,7 @@ import {
   LIMITS,
   clientMessage,
   joinOptions,
+  type DeadlineMessage,
   type ErrorCode,
   type HostMessage,
   type JoinError,
@@ -454,6 +455,7 @@ export function createGameRoom(deps: GameRoomDeps) {
         this.phase = "results";
         this.deadlineTimer?.clear();
         this.deadlineClock = null;
+        this.broadcastDeadline(null);
         // Seats of players who left mid-game are released now that the game is over.
         for (const member of this.members.values()) {
           if (!member.isConnected) this.members.delete(member.userId);
@@ -473,8 +475,17 @@ export function createGameRoom(deps: GameRoomDeps) {
       const now = Date.now();
       const isAway = deadline !== null && !this.isSeatConnected(deadline.seat);
       this.deadlineClock = trackDeadline(this.deadlineClock, deadline, now, isAway);
-      if (deadline === null || this.deadlineClock === null || this.match === null) return;
+      if (deadline === null || this.deadlineClock === null || this.match === null) {
+        this.broadcastDeadline(null);
+        return;
+      }
       const ms = msUntilDue(this.deadlineClock, deadline, now);
+      this.broadcastDeadline({
+        seat: deadline.seat,
+        key: deadline.key,
+        msLeft: ms === null ? null : Math.max(0, Math.round(ms)),
+        totalMs: deadline.at,
+      });
       if (ms === null) return;
       const turnSeq = this.match.turnSeq();
       this.deadlineTimer = this.clock.setTimeout(
@@ -550,6 +561,10 @@ export function createGameRoom(deps: GameRoomDeps) {
       this.markChanged();
     }
 
+    private broadcastDeadline(deadline: DeadlineMessage["deadline"]) {
+      this.broadcast("deadline", { type: "deadline", deadline } satisfies DeadlineMessage);
+    }
+
     private sendError(client: Client, code: ErrorCode) {
       client.send("error", { type: "error", code, message: ERROR_MESSAGES[code] });
     }
@@ -578,6 +593,7 @@ export function createGameRoom(deps: GameRoomDeps) {
           .filter((m) => m.seat === null)
           .map((m) => ({ userId: m.userId, nickname: m.nickname })),
         matchPlayers: this.matchPlayers,
+        gameConfig: this.setup?.config ?? null,
       };
       this.broadcast("room", message);
       this.markChanged();

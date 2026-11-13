@@ -199,6 +199,14 @@ describe("GameRoom", () => {
       { userId: "dev-g2", nickname: "Bilal", color: expect.any(String) as unknown },
     ]);
 
+    // Everyone sees the setup clock, as time left rather than a time of day.
+    const clock = await a.waitFor("deadline", (d) => d["deadline"] !== null);
+    expect(clock["deadline"]).toMatchObject({ key: "setup", seat: expect.any(Number) as unknown });
+    const { msLeft, totalMs } = clock["deadline"] as { msLeft: number; totalMs: number };
+    expect(msLeft).toBeGreaterThan(totalMs - 2_000);
+    expect(msLeft).toBeLessThanOrEqual(totalMs);
+    expect(playing["gameConfig"]).toEqual(QUICK);
+
     let seq = 0;
     let id = 0;
     /** Sends a move quoting the seq this player last saw, and waits for it to be accepted. */

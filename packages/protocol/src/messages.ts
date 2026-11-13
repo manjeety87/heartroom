@@ -157,6 +157,11 @@ export const roomMessage = z.strictObject({
     .array(z.strictObject({ userId: id, nickname, color: z.enum(SEAT_COLOR_IDS) }))
     .max(LIMITS.MAX_SEATS)
     .optional(),
+  /**
+   * The settings the host chose for the next game (`gameId`'s own config, parsed by that game's
+   * UI), so every screen shows them and the host's picker survives a refresh.
+   */
+  gameConfig: z.unknown().optional(),
 });
 
 /** One viewer's `view()` after action `seq`. Views are full snapshots: the newest one wins. */
@@ -164,6 +169,27 @@ export const gameMessage = z.strictObject({
   type: z.literal("game"),
   seq,
   view: z.unknown(),
+});
+
+/**
+ * The clock of the current turn, sent whenever it starts, stops or pauses. `msLeft` (not a time of
+ * day) so the countdown doesn't depend on the phone's clock being right; null while the clock is
+ * paused (an "away only" clock with its player present).
+ */
+export const deadlineMessage = z.strictObject({
+  type: z.literal("deadline"),
+  deadline: z
+    .strictObject({
+      seat: z
+        .number()
+        .int()
+        .min(0)
+        .max(LIMITS.MAX_SEATS - 1),
+      key: z.string().min(1).max(64),
+      msLeft: z.number().int().nullable(),
+      totalMs: z.number().int().positive(),
+    })
+    .nullable(),
 });
 
 export const ackMessage = z.strictObject({ type: z.literal("ack"), clientActionId: id });
@@ -212,7 +238,9 @@ export const serverMessage = z.discriminatedUnion("type", [
   voiceTokenMessage,
   knockMessage,
   checkpointMessage,
+  deadlineMessage,
 ]);
 
 export type ServerMessage = z.infer<typeof serverMessage>;
 export type RoomMessage = z.infer<typeof roomMessage>;
+export type DeadlineMessage = z.infer<typeof deadlineMessage>;
