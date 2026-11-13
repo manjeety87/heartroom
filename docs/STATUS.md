@@ -101,6 +101,17 @@ _Update this file at the end of every working session (any agent, any device)._
 | 6 | Leaderboard | not started |
 | 7 | Admin dashboard | not started |
 
+## Run locally (any laptop, no .env needed)
+
+1. `pnpm install`
+2. Game server (port 2567): `pnpm --filter @heartroom/server dev`
+3. Site (port 3000, required: the server checks logins against `localhost:3000`):
+   laptop only `pnpm --filter @heartroom/web dev`; for phones `pnpm --filter @heartroom/web build` then
+   `pnpm --filter @heartroom/web start`, and open `http://<laptop-ip>:3000/play` on the same Wi-Fi
+   (allow Node.js on Private networks in Windows Firewall).
+4. A second player needs another browser or an incognito window (tabs of one browser are one guest).
+   Local data lives in `.data/pglite` (git-ignored); delete the folder to start fresh.
+
 ## Notes for the next session
 
 - The repo is public, so never commit secrets or personal data.
