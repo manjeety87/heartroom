@@ -78,3 +78,8 @@ Append-only. One line per decision: date, the decision, and the reason. Details 
 | 2026-11-13 | A finished game's result is not revived by a restart (the room returns to its lobby); only games in progress resume | Finished games are already recorded; "matchId in matches" is the anti-rollback rule |
 | 2026-11-13 | `match_players.user_id` is nullable (dev identities, deleted accounts) with RESTRICT | Matches play with dev tokens in tests; history is never cascaded away |
 | 2026-11-13 | If the database can't be asked during a restore, the room still comes back | Losing every game to a database blip is worse than the rare roll-back it would block |
+| 2026-11-13 | Voice is off until all three `LIVEKIT_*` are set (half-set refuses to boot); `VOICE_ENABLED=false` is the kill switch | Local development and tests need no LiveKit account; a typo can't silently disable voice |
+| 2026-11-13 | Every voice-token refusal is `VOICE_UNAVAILABLE` (also rate limit / not a member) | The browser must tell a voice refusal from a refused move, which clears the move outbox |
+| 2026-11-13 | Kick and leaving the room call LiveKit `RemoveParticipant` with `revokeTokenTs` = now | Voids a still-valid token without waiting for the webhook slice |
+| 2026-11-13 | Host block-mic lives on the voice dock's chips (not only the lobby list) | The host must be able to silence someone mid-game (CUJ 6) |
+| 2026-11-13 | The host's own "mute" command stays `NOT_AVAILABLE_YET`; mute is each person's own mic button | Block mic covers safety; muting someone else's track adds nothing a block doesn't |
