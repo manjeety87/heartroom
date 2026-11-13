@@ -3,7 +3,7 @@
 _Update this file at the end of every working session (any agent, any device)._
 
 **Last updated:** 2026-11-12
-**Phase:** Phase 1 done (owner checked on a phone) + UI redesign + Q2 spike done → next is Phase 2a.
+**Phase:** Phase 1 done (owner checked on a phone) + UI redesign + Q2 spike done → Phase 2a in progress (#15, #17, #18 done; next #16 GameRoom).
 
 ## Done
 
@@ -30,13 +30,27 @@ _Update this file at the end of every working session (any agent, any device)._
       `docs/design/ui-system.md`. 211 tests.
 - [x] **Fix: Start game on phones** (2026-11-11): `crypto.randomUUID` is missing on `http://<laptop-ip>`;
       ids now come from `newId()`. Owner confirmed on the phone: works.
+- [x] **Q2 Colyseus spike** (2026-11-12): Colyseus 0.18 works with plain state + per-viewer messages.
+      What the room must do because of it is in the design doc › Sync model › "Q2 spike result" (zod in
+      the handler, not `validate()`; `onDrop`/`onReconnect`; SDK reconnect fallback; message rate limit).
+- [x] **Phase 2a, first slice** (2026-11-12): `apps/server` boots (Colyseus 0.18 pinned, `tsx`):
+      `config.ts` (zod env, names-only errors, no wildcard origin in production), pino logger with
+      redaction, `/healthz` (`ok`, `bootId`, `rooms`), WS upgrade refused (403) for an Origin not in
+      `ALLOWED_ORIGINS`; `rooms/registry.ts` (`GAMES = { bingo }`), `rooms/codes.ts` (6-char code,
+      128-bit link token, `node:crypto`), `rooms/rate-limit.ts` (token buckets, bounded memory);
+      `roomCodeInput` in `packages/protocol` for the web join field. 236 tests. Boot, `/healthz` and
+      the Origin check were tried against the running server. No room exists yet.
 
 ## Next
 
 1. **Owner check of the rest of the redesign** on a phone (Start game already confirmed): Settings (name, colour, every theme in light and dark,
    Make your own, text size), a game at 5×5 and 8×8 (two-tap call), results, History step-through,
    sounds and vibration. Same commands as before (`build`, then `start`, open `/play/bingo`).
-2. **Phase 2a** (#15–#18, #20–#23), following the Q2 spike result. The room must honour
+2. **Phase 2a**, following the Q2 spike result: **#16 `GameRoom`** next (serial queue, `turnSeq`,
+   per-viewer `view`, deadlines, reconnect/takeover). JWT verify needs `AUTH_JWKS_URL`, so either do
+   #23 (auth) first or start with a dev-only token check that refuses to run in production. Then
+   #20–#23. Run the server: `ALLOWED_ORIGINS=http://localhost:3000 pnpm --filter @heartroom/server dev`.
+   The room must honour
    `Deadline.key` / `onlyWhenAway`, give each joiner a free player colour, and keep names unique
    per room (`docs/design/ui-system.md` › Names, Player colours).
 3. Still open: Q1 (pricing), Q3 (name check), Q4 (iOS voice), Q5 (server host).
