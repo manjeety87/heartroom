@@ -77,6 +77,11 @@ export const snapshotSchema = z.strictObject({
   hostId: id,
   isLocked: z.boolean(),
   bans: z.array(id).max(LIMITS.MAX_SEATS + LIMITS.MAX_SPECTATORS),
+  /** Defaults so checkpoints sealed before voice existed still open. */
+  micBlocked: z
+    .array(id)
+    .max(LIMITS.MAX_SEATS + LIMITS.MAX_SPECTATORS)
+    .default([]),
   gamesStarted: z.number().int().nonnegative(),
   phase: z.enum(ROOM_PHASES),
   members: z.array(memberSnapshot).max(LIMITS.MAX_SEATS + LIMITS.MAX_SPECTATORS),

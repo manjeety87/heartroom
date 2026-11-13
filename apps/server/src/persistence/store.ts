@@ -27,7 +27,8 @@ export type RoomStore = {
   isRoomClosed(roomId: string): Promise<boolean>;
 };
 
-export type RoomEventType = "created" | "closed" | "restored" | "kicked";
+export type RoomEventType =
+  "created" | "closed" | "restored" | "kicked" | "mic_blocked" | "mic_unblocked";
 
 export type MatchToRecord = {
   readonly id: string;

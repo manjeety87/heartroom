@@ -23,6 +23,7 @@ function snapshot(overrides: Partial<RoomSnapshot> = {}): RoomSnapshot {
     hostId: "asha",
     isLocked: false,
     bans: [],
+    micBlocked: [],
     gamesStarted: 1,
     phase: "playing",
     members: [member("asha", 0), member("bilal", 1), member("chitra", null)],

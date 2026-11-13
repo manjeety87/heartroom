@@ -31,6 +31,24 @@ describe("parseConfig", () => {
     });
   });
 
+  it("when LiveKit is set, then voice is on; half-set refuses to boot; the kill switch turns it off", () => {
+    const livekit = {
+      LIVEKIT_URL: "wss://x.livekit.cloud",
+      LIVEKIT_API_KEY: "key",
+      LIVEKIT_API_SECRET: "secret",
+    };
+    expect(parseConfig({}).voice).toBeNull();
+    expect(parseConfig(livekit).voice).toEqual({
+      url: "wss://x.livekit.cloud",
+      apiKey: "key",
+      apiSecret: "secret",
+    });
+    expect(parseConfig({ ...livekit, VOICE_ENABLED: "false" }).voice).toBeNull();
+    expect(() => parseConfig({ LIVEKIT_URL: "wss://x.livekit.cloud" })).toThrow(
+      /LIVEKIT_API_KEY: set all three/,
+    );
+  });
+
   it("when production has no origin list, then refuses to boot", () => {
     expect(() => parseConfig({ NODE_ENV: "production" })).toThrow(/ALLOWED_ORIGINS: required/);
   });

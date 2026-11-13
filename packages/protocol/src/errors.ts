@@ -18,6 +18,8 @@ export const ERROR_CODES = {
   NOT_AVAILABLE_YET: "NOT_AVAILABLE_YET",
   /** The room is being rebuilt from its players' checkpoints after a restart (a few seconds). */
   ROOM_RESTORING: "ROOM_RESTORING",
+  /** Voice is switched off, not configured, or LiveKit couldn't be reached. The game goes on. */
+  VOICE_UNAVAILABLE: "VOICE_UNAVAILABLE",
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
@@ -38,6 +40,7 @@ export const ERROR_MESSAGES: Readonly<Record<ErrorCode, string>> = {
   NAME_TAKEN: "Someone in this room already has that name.",
   NOT_AVAILABLE_YET: "That isn’t available yet.",
   ROOM_RESTORING: "This room is coming back after a restart. Try again in a few seconds.",
+  VOICE_UNAVAILABLE: "Voice isn’t available right now. The game still works.",
 };
 
 /**

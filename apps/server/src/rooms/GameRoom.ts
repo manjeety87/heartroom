@@ -33,6 +33,7 @@ import { freeSeat, nameSuggestion, nextHost, pickColor, type Member } from "./me
 import { createQueue, type Queue } from "./queue.ts";
 import { createRateLimiter } from "./rate-limit.ts";
 import { GAMES, isGameId } from "./registry.ts";
+import type { Voice } from "../voice/voice.ts";
 
 export type GameRoomDeps = {
   readonly verifyToken: VerifyToken;
@@ -43,6 +44,8 @@ export type GameRoomDeps = {
   readonly bootId: string;
   /** Matches and room events in Postgres. Never awaited by game play (only by a restore). */
   readonly store: RoomStore;
+  /** LiveKit tokens and permissions; disabled when voice isn't configured. */
+  readonly voice: Voice;
 };
 
 /** Seconds a dropped player keeps their place (design doc › GameRoom › Reconnect). */
@@ -60,6 +63,8 @@ const liveCodes = new Set<string>();
 const joinPerIp = createRateLimiter({ capacity: 10, windowMs: MINUTE });
 const createPerIp = createRateLimiter({ capacity: 20, windowMs: MINUTE });
 const createPerUser = createRateLimiter({ capacity: 5, windowMs: MINUTE });
+// Joining voice is a tap; a client asking more often than this is looping.
+const voiceTokensPerUser = createRateLimiter({ capacity: 10, windowMs: MINUTE });
 
 type JoinTicket = {
   readonly userId: string;
@@ -90,6 +95,8 @@ export function createGameRoom(deps: GameRoomDeps) {
     private readonly members = new Map<string, Member>();
     private readonly tickets = new Map<string, JoinTicket>();
     private readonly bans = new Set<string>();
+    /** Kept in room state (and checkpoints) so every new voice token also says canPublish: false. */
+    private readonly micBlocked = new Set<string>();
     private readonly invalidMessages = createRateLimiter({ capacity: 10, windowMs: MINUTE });
     private readonly recentActionIds: string[] = [];
     private queue!: Queue;
@@ -268,6 +275,8 @@ export function createGameRoom(deps: GameRoomDeps) {
         this.members.set(member.userId, { ...member, isConnected: false });
       } else {
         this.members.delete(member.userId);
+        // Out of the room means out of its voice too, even if the browser didn't say goodbye.
+        void deps.voice.remove(this.roomUid, member.userId);
       }
       if (this.hostId === member.userId) {
         this.hostId = nextHost([...this.members.values()], member.userId) ?? this.hostId;
@@ -323,6 +332,8 @@ export function createGameRoom(deps: GameRoomDeps) {
           });
           return;
         case "voice_token":
+          void this.onVoiceToken(client);
+          return;
         case "rematch_ready":
           this.sendError(client, "NOT_AVAILABLE_YET");
           return;
@@ -393,19 +404,66 @@ export function createGameRoom(deps: GameRoomDeps) {
             return;
           }
           this.bans.add(target.userId);
+          this.micBlocked.delete(target.userId);
           this.clients.get(target.sessionId)?.leave(CLOSE_CODES.KICKED);
+          void deps.voice.remove(this.roomUid, target.userId);
           this.saveEvent("kicked", { userId: target.userId });
           this.log.info({ event: "kicked", userId: target.userId }, "kicked");
           return;
         }
+        case "block_mic":
+        case "unblock_mic": {
+          const target = this.members.get(command.target);
+          if (target === undefined || target.userId === this.hostId) {
+            this.sendError(client, "RULE_VIOLATION");
+            return;
+          }
+          const isBlocked = command.kind === "block_mic";
+          if (isBlocked) this.micBlocked.add(target.userId);
+          else this.micBlocked.delete(target.userId);
+          // Enforced by LiveKit, not only the UI: a modified client still can't publish.
+          void deps.voice.setCanPublish(this.roomUid, target.userId, !isBlocked);
+          this.saveEvent(isBlocked ? "mic_blocked" : "mic_unblocked", { userId: target.userId });
+          this.broadcastRoom();
+          return;
+        }
         case "new_code":
         case "mute":
-        case "block_mic":
-        case "unblock_mic":
         case "accept_knock":
         case "deny_knock":
           this.sendError(client, "NOT_AVAILABLE_YET");
           return;
+      }
+    }
+
+    // ── voice ─────────────────────────────────────────────────────────────────────────────────
+
+    /** A short LiveKit token for this person in this room; voice never blocks the game. */
+    private async onVoiceToken(client: Client) {
+      const member = this.memberOf(client);
+      if (member === undefined || this.restoring !== null) {
+        this.sendError(client, "RULE_VIOLATION");
+        return;
+      }
+      if (!deps.voice.isEnabled) {
+        this.sendError(client, "VOICE_UNAVAILABLE");
+        return;
+      }
+      if (!voiceTokensPerUser.take(member.userId)) {
+        this.sendError(client, "RATE_LIMITED");
+        return;
+      }
+      try {
+        const token = await deps.voice.mintToken({
+          room: this.roomUid,
+          identity: member.userId,
+          name: member.nickname,
+          canPublish: !this.micBlocked.has(member.userId),
+        });
+        client.send("voice_token", { type: "voice_token", token, url: deps.voice.url });
+      } catch (error) {
+        this.log.warn({ event: "voice_token_failed", err: error }, "voice_token_failed");
+        this.sendError(client, "VOICE_UNAVAILABLE");
       }
     }
 
@@ -594,6 +652,7 @@ export function createGameRoom(deps: GameRoomDeps) {
           .map((m) => ({ userId: m.userId, nickname: m.nickname })),
         matchPlayers: this.matchPlayers,
         gameConfig: this.setup?.config ?? null,
+        micBlocked: [...this.micBlocked],
       };
       this.broadcast("room", message);
       this.markChanged();
@@ -704,6 +763,7 @@ export function createGameRoom(deps: GameRoomDeps) {
         hostId: this.hostId,
         isLocked: this.isLocked,
         bans: [...this.bans],
+        micBlocked: [...this.micBlocked],
         gamesStarted: this.gamesStarted,
         phase: this.phase,
         members: [...this.members.values()].map(({ userId, nickname, color, seat }) => ({
@@ -778,6 +838,7 @@ export function createGameRoom(deps: GameRoomDeps) {
       this.hostId = snapshot.hostId;
       this.isLocked = snapshot.isLocked;
       for (const userId of snapshot.bans) this.bans.add(userId);
+      for (const userId of snapshot.micBlocked) this.micBlocked.add(userId);
       this.gamesStarted = snapshot.gamesStarted;
       this.setup =
         snapshot.setup !== null && isGameId(snapshot.setup.gameId)

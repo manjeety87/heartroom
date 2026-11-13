@@ -162,6 +162,11 @@ export const roomMessage = z.strictObject({
    * UI), so every screen shows them and the host's picker survives a refresh.
    */
   gameConfig: z.unknown().optional(),
+  /** Users whose mic the host has blocked: LiveKit refuses their audio, and the UI says so. */
+  micBlocked: z
+    .array(id)
+    .max(LIMITS.MAX_SEATS + LIMITS.MAX_SPECTATORS)
+    .optional(),
 });
 
 /** One viewer's `view()` after action `seq`. Views are full snapshots: the newest one wins. */

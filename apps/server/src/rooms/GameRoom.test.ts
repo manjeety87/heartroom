@@ -10,6 +10,7 @@ import { createLogger } from "../logger.ts";
 import { openTestDb } from "@heartroom/db/testing";
 import { schema, type Db } from "@heartroom/db";
 import { createDbStore, type RoomStore } from "../persistence/store.ts";
+import type { Voice } from "../voice/voice.ts";
 import { createGameRoom } from "./GameRoom.ts";
 
 /**
@@ -24,6 +25,23 @@ let closeDb: () => Promise<void>;
 let store: RoomStore;
 
 const sealer = createSealer({ current: randomBytes(32) });
+
+/** Stands in for LiveKit: tokens spell out their grant, and every permission change is recorded. */
+const voiceCalls: string[] = [];
+const voice: Voice = {
+  isEnabled: true,
+  url: "wss://voice.test",
+  mintToken: ({ identity, canPublish }) =>
+    Promise.resolve(`token:${identity}:${canPublish ? "talk" : "listen"}`),
+  setCanPublish: (_room, identity, canPublish) => {
+    voiceCalls.push(`${canPublish ? "allow" : "block"}:${identity}`);
+    return Promise.resolve();
+  },
+  remove: (_room, identity) => {
+    voiceCalls.push(`remove:${identity}`);
+    return Promise.resolve();
+  },
+};
 
 beforeAll(async () => {
   ({ db, close: closeDb } = await openTestDb());
@@ -42,6 +60,7 @@ beforeAll(async () => {
           sealer,
           store,
           bootId: "test-boot",
+          voice,
         }),
       ),
     },
@@ -298,6 +317,41 @@ describe("GameRoom", () => {
     host.send({ type: "host", kind: "lock" });
     await host.waitFor("room", (r) => r["isLocked"] === true);
     expect(await refusal(join(code, "k3", "Zoya"))).toMatchObject({ code: "ROOM_LOCKED" });
+    await host.room.leave();
+  });
+
+  it("when the host blocks a mic, then LiveKit is told, the room says so and new tokens can't talk", async () => {
+    const host = await create("v1", "Vani");
+    const code = host.room.roomId;
+    const guest = await join(code, "v2", "Omar");
+
+    guest.send({ type: "voice_token" });
+    expect(await guest.waitFor("voice_token")).toEqual({
+      type: "voice_token",
+      token: "token:dev-v2:talk",
+      url: "wss://voice.test",
+    });
+
+    // Only the host may block, and never their own mic.
+    guest.send({ type: "host", kind: "block_mic", target: "dev-v1" });
+    expect(await guest.waitFor("error")).toMatchObject({ code: "RULE_VIOLATION" });
+    host.send({ type: "host", kind: "block_mic", target: "dev-v1" });
+    expect(await host.waitFor("error")).toMatchObject({ code: "RULE_VIOLATION" });
+
+    host.send({ type: "host", kind: "block_mic", target: "dev-v2" });
+    await guest.waitFor("room", (r) => JSON.stringify(r["micBlocked"]) === '["dev-v2"]');
+    expect(voiceCalls).toContain("block:dev-v2");
+    guest.send({ type: "voice_token" });
+    expect(await guest.waitFor("voice_token")).toMatchObject({ token: "token:dev-v2:listen" });
+
+    guest.inbox.length = 0; // older room messages also had an empty list
+    host.send({ type: "host", kind: "unblock_mic", target: "dev-v2" });
+    await guest.waitFor("room", (r) => JSON.stringify(r["micBlocked"]) === "[]");
+    expect(voiceCalls).toContain("allow:dev-v2");
+
+    // Removing someone drops them from voice as well.
+    host.send({ type: "host", kind: "kick", target: "dev-v2" });
+    await until(() => voiceCalls.includes("remove:dev-v2"));
     await host.room.leave();
   });
 

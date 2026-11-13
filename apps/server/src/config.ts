@@ -53,11 +53,24 @@ const envSchema = z
     /** AES-256-GCM key for crash-recovery checkpoints. Rotation: move the old one to _PREVIOUS. */
     CHECKPOINT_KEY: optional(checkpointKey),
     CHECKPOINT_KEY_PREVIOUS: optional(checkpointKey),
+    /** LiveKit Cloud project (wss://…). Voice is off until all three are set. */
+    LIVEKIT_URL: optional(z.url({ protocol: /^wss?$/ })),
+    LIVEKIT_API_KEY: optional(z.string().min(1)),
+    LIVEKIT_API_SECRET: optional(z.string().min(1)),
+    /** Kill switch: "false" turns voice off without removing the keys. */
+    VOICE_ENABLED: optional(z.enum(["true", "false"])).default("true"),
     LOG_LEVEL: optional(z.enum(["fatal", "error", "warn", "info", "debug", "trace"])).default(
       "info",
     ),
   })
   .superRefine((env, ctx) => {
+    const livekit = ["LIVEKIT_URL", "LIVEKIT_API_KEY", "LIVEKIT_API_SECRET"] as const;
+    const setCount = livekit.filter((key) => env[key] !== undefined).length;
+    if (setCount > 0 && setCount < livekit.length) {
+      for (const key of livekit.filter((k) => env[k] === undefined)) {
+        ctx.addIssue({ code: "custom", path: [key], message: "set all three LIVEKIT_ values" });
+      }
+    }
     if (env.NODE_ENV !== "production") return;
     for (const key of ["AUTH_JWKS_URL", "CHECKPOINT_KEY", "DATABASE_URL"] as const) {
       if (env[key] === undefined) {
@@ -84,6 +97,13 @@ const envSchema = z
     AUTH_JWKS_URL: env.AUTH_JWKS_URL ?? DEV_JWKS_URL,
     CHECKPOINT_KEY: env.CHECKPOINT_KEY ?? DEV_CHECKPOINT_KEY,
     DATABASE_URL: env.DATABASE_URL ?? DEV_DATABASE_URL,
+    voice:
+      env.VOICE_ENABLED === "true" &&
+      env.LIVEKIT_URL !== undefined &&
+      env.LIVEKIT_API_KEY !== undefined &&
+      env.LIVEKIT_API_SECRET !== undefined
+        ? { url: env.LIVEKIT_URL, apiKey: env.LIVEKIT_API_KEY, apiSecret: env.LIVEKIT_API_SECRET }
+        : null,
   }));
 
 export type Config = Readonly<z.infer<typeof envSchema> & { isProduction: boolean }>;

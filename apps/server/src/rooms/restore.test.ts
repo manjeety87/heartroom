@@ -11,6 +11,7 @@ import { openTestDb } from "@heartroom/db/testing";
 import { schema, type Db } from "@heartroom/db";
 import { eq } from "drizzle-orm";
 import { createDbStore, type RoomStore } from "../persistence/store.ts";
+import { createVoice } from "../voice/voice.ts";
 import { createGameRoom } from "./GameRoom.ts";
 
 /**
@@ -51,6 +52,7 @@ async function startServer(bootId: string): Promise<Server> {
           sealer,
           store,
           bootId,
+          voice: createVoice(null, createLogger("silent")),
         }),
       ),
     },

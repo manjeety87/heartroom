@@ -10,6 +10,7 @@ import { parseConfig } from "./config.ts";
 import { createLogger } from "./logger.ts";
 import { isAllowedOrigin } from "./origin.ts";
 import { createGameRoom } from "./rooms/GameRoom.ts";
+import { createVoice } from "./voice/voice.ts";
 
 const config = (() => {
   try {
@@ -45,6 +46,9 @@ const sealer = createSealer({
 // The game never waits on this: rooms write matches and events in the background.
 const store = createDbStore(connectPostgres(config.DATABASE_URL));
 
+const voice = createVoice(config.voice, log);
+log.info({ event: "voice", enabled: voice.isEnabled }, "voice");
+
 const transport = new WebSocketTransport({
   maxPayload: LIMITS.MESSAGE_BYTES,
   beforeUpgrade(request) {
@@ -59,7 +63,7 @@ const server = defineServer({
   transport,
   greet: false,
   // One room type for every game; the host picks the game inside the room.
-  rooms: { room: defineRoom(createGameRoom({ verifyToken, log, sealer, bootId, store })) },
+  rooms: { room: defineRoom(createGameRoom({ verifyToken, log, sealer, bootId, store, voice })) },
   routes: createRouter({
     healthz: createEndpoint("/healthz", { method: "GET" }, () =>
       Promise.resolve({ ok: true, bootId, rooms: matchMaker.stats.local.roomCount }),
