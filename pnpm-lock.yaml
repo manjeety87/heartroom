@@ -272,6 +272,9 @@ importers:
       '@heartroom/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@heartroom/word-guess':
+        specifier: workspace:*
+        version: link:../../packages/games/word-guess
       better-auth:
         specifier: ^1.7.21
         version: 1.7.21(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@electric-sql/pglite@0.5.16)(kysely@0.29.8)(postgres@4.1.1))(next@16.4.6(@babel/core@7.29.13(supports-color@7.2.0))(@types/node@22.20.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.1.0)

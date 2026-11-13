@@ -5,6 +5,7 @@ const config: NextConfig = {
   transpilePackages: [
     "@heartroom/engine",
     "@heartroom/bingo",
+    "@heartroom/word-guess",
     "@heartroom/ui",
     "@heartroom/protocol",
     "@heartroom/db",

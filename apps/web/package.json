@@ -16,6 +16,7 @@
     "@heartroom/engine": "workspace:*",
     "@heartroom/protocol": "workspace:*",
     "@heartroom/ui": "workspace:*",
+    "@heartroom/word-guess": "workspace:*",
     "better-auth": "^1.7.21",
     "drizzle-orm": "^0.45.4",
     "livekit-client": "^2.24.0",

@@ -21,12 +21,14 @@ export function TurnClock({
   clock,
   names,
   me,
+  gameId,
 }: {
   readonly clock: Clock;
   /** Name per game seat. */
   readonly names: readonly string[];
   /** The viewer's game seat, if they play. */
   readonly me: number | null;
+  readonly gameId: string | null;
 }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -45,14 +47,20 @@ export function TurnClock({
   const name = names[clock.seat] ?? "Someone";
   const who =
     clock.key === "setup"
-      ? "Grids lock in"
-      : clock.key.startsWith("nudge")
+      ? gameId === "word-guess"
+        ? "Words lock in"
+        : "Grids lock in"
+      : clock.key.startsWith("guess")
         ? isMine
-          ? "You were nudged: call in"
-          : `${name} was nudged: calls in`
-        : isMine
-          ? "Your call:"
-          : `${name}’s call:`;
+          ? "You’re away: a guess is made for you in"
+          : `${name} is away: a guess is made in`
+        : clock.key.startsWith("nudge")
+          ? isMine
+            ? "You were nudged: call in"
+            : `${name} was nudged: calls in`
+          : isMine
+            ? "Your call:"
+            : `${name}’s call:`;
   const isHurry = left <= HURRY_MS;
 
   return (

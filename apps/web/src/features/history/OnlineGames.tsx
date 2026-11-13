@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { bingoConfigSchema, isClassic } from "@heartroom/bingo";
+import { wordGuessConfigSchema } from "@heartroom/word-guess";
 import { Button } from "@heartroom/ui";
 import { onlineHistorySchema, type OnlineGame, type OnlineHistory } from "@/lib/history/online";
 
 const dateFormat = new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" });
-const GAME_NAMES: Readonly<Record<string, string>> = { bingo: "Bingo" };
+const GAME_NAMES: Readonly<Record<string, string>> = { bingo: "Bingo", "word-guess": "Word Guess" };
 
 type Load =
   | { readonly state: "loading" | "error" }
@@ -126,6 +127,10 @@ function headline(game: OnlineGame): string {
 }
 
 function grid(game: OnlineGame): string {
+  if (game.gameId === "word-guess") {
+    const words = wordGuessConfigSchema.safeParse(game.config);
+    return words.success ? `Word Guess · ${String(words.data.length)} letters` : "Word Guess";
+  }
   const config = bingoConfigSchema.safeParse(game.config);
   if (game.gameId !== "bingo" || !config.success) return GAME_NAMES[game.gameId] ?? game.gameId;
   const { size, linesToWin } = config.data;
