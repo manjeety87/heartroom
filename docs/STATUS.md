@@ -3,7 +3,7 @@
 _Update this file at the end of every working session (any agent, any device)._
 
 **Last updated:** 2026-11-12
-**Phase:** Phase 1 done (owner checked on a phone) + UI redesign + Q2 spike done → Phase 2a in progress (#15, #17, #18 done; next #16 GameRoom).
+**Phase:** Phase 1 done (owner checked on a phone) + UI redesign + Q2 spike done → Phase 2a in progress (#15–#18 done; next #23 auth, then #22 web room screens).
 
 ## Done
 
@@ -39,17 +39,31 @@ _Update this file at the end of every working session (any agent, any device)._
       `ALLOWED_ORIGINS`; `rooms/registry.ts` (`GAMES = { bingo }`), `rooms/codes.ts` (6-char code,
       128-bit link token, `node:crypto`), `rooms/rate-limit.ts` (token buckets, bounded memory);
       `roomCodeInput` in `packages/protocol` for the web join field. 236 tests. Boot, `/healthz` and
-      the Origin check were tried against the running server. No room exists yet.
+      the Origin check were tried against the running server.
+- [x] **Phase 2a #16 `GameRoom`** (2026-11-12): one room type for every game; room id = the room code.
+      Join checks (dev token, rate limits, bans, lock, unique names with a suggestion, free colour),
+      seats/spectators, takeover, 60 s reconnect, host config/start/lock/kick, serial queue, duplicate
+      intents re-acked, per-viewer views, deadlines with away-only clocks and auto-play. Close codes
+      moved to 4101+ (Colyseus owns 4000–4010). 273 tests, incl. a real-server game with no grid leak.
+      `pnpm --filter @heartroom/server dev` now works in PowerShell with no env set.
 
 ## Next
 
 1. **Owner check of the rest of the redesign** on a phone (Start game already confirmed): Settings (name, colour, every theme in light and dark,
    Make your own, text size), a game at 5×5 and 8×8 (two-tap call), results, History step-through,
    sounds and vibration. Same commands as before (`build`, then `start`, open `/play/bingo`).
-2. **Phase 2a**, following the Q2 spike result: **#16 `GameRoom`** next (serial queue, `turnSeq`,
-   per-viewer `view`, deadlines, reconnect/takeover). JWT verify needs `AUTH_JWKS_URL`, so either do
-   #23 (auth) first or start with a dev-only token check that refuses to run in production. Then
-   #20–#23. Run the server (any shell, no env needed in development): `pnpm --filter @heartroom/server dev`.
+2. **Phase 2a**, next steps in order:
+   - **#23 Better Auth** (anonymous guest + JWT, `/api/auth/jwks`) and swap the `dev:<id>` branch in
+     `apps/server/src/auth/verify-token.ts` for a jose JWKS check. Until then the server lets nobody
+     in when `NODE_ENV=production`.
+   - **#22 web room screens** (`/r/[code]`, `/room/[id]`, `lib/room-client.ts` with `@colyseus/sdk`
+     0.18.10): send messages as `room.send(msg.type, msg)`, keep `reconnectionToken` and call
+     `reconnect` yourself (SDK auto-reconnect needs 5 s uptime), parse join refusals with `joinError`.
+   - Then #19 checkpoints, #20/#21 match persistence + DB.
+   - Not built yet in the room (answer `NOT_AVAILABLE_YET`): knocks (late joiners are spectators
+     for now), new code, mute/block mic (Phase 3), resume (#19), rematch_ready. "Away" means
+     disconnected; a hidden tab doesn't count yet (needs a client presence message). Unknown codes
+     aren't rate-limited (Colyseus answers before `onAuth`): limit the matchmake route before launch. Run the server (any shell, no env needed in development): `pnpm --filter @heartroom/server dev`.
    The room must honour
    `Deadline.key` / `onlyWhenAway`, give each joiner a free player colour, and keep names unique
    per room (`docs/design/ui-system.md` › Names, Player colours).

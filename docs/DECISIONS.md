@@ -58,3 +58,7 @@ Append-only. One line per decision: date, the decision, and the reason. Details 
 | 2026-11-12 | Q2 closed: Colyseus 0.18 (`@colyseus/core` + `ws-transport`, client `@colyseus/sdk`), plain state + per-viewer messages; zod `safeParse` in handlers, not Colyseus `validate()` | Spike passed; `validate()` disconnects on a bad payload instead of letting us reply with an error |
 | 2026-11-12 | Pin exact Colyseus versions (`@colyseus/core` 0.18.28, `ws-transport` 0.18.5, `schema` 5.0.46); install scripts denied for esbuild and msgpackr-extract | Versions the spike ran; neither script is needed (prebuilt binary / pure-JS fallback) |
 | 2026-11-12 | Close codes move to 4101–4106 (changed, not added: nothing shipped uses them) | Colyseus 0.18 owns 4000–4003 and 4010; `KICKED 4002` was its `WITH_ERROR` |
+| 2026-11-12 | Until Better Auth (#23), the server accepts only `dev:<id>` tokens and only outside production | Rooms can be built and tested now; a deploy can't be entered with a made-up identity |
+| 2026-11-12 | An intent is stale only when the game's deadline key changed since the `turnSeq` it quotes | A strict seq check refused every simultaneous setup move (all players fill grids at once) |
+| 2026-11-12 | Room id = room code; one room type `room` for every game; seat 0 rotates each game | Join by code is a plain `joinById`; the game is chosen inside the room |
+| 2026-11-12 | `ALLOWED_ORIGINS` optional outside production (defaults to every origin) | Phones test at `http://<laptop-ip>:3000`; `NAME=value cmd` doesn't work in PowerShell |
