@@ -74,3 +74,7 @@ Append-only. One line per decision: date, the decision, and the reason. Details 
 | 2026-11-13 | Resume = the `resume` join option (joinById, else create with the code, else join) instead of a socket message | After a restart there is no room to send a message to; the first resumer recreates it under the same code |
 | 2026-11-13 | Checkpoints are ordered by a room-wide change counter, not the game seq | The game seq restarts each game, so an old game's results would outrank a new game |
 | 2026-11-13 | Development uses a fixed public `CHECKPOINT_KEY`; production requires one | A restarted dev server can open the checkpoints browsers hold; nothing real is protected locally |
+| 2026-11-13 | Development database = PGlite behind a Postgres socket (`pnpm --filter @heartroom/db dev`, :5433), shared by site and server | PGlite opens in one process only; the server now writes matches while the site runs auth |
+| 2026-11-13 | A finished game's result is not revived by a restart (the room returns to its lobby); only games in progress resume | Finished games are already recorded; "matchId in matches" is the anti-rollback rule |
+| 2026-11-13 | `match_players.user_id` is nullable (dev identities, deleted accounts) with RESTRICT | Matches play with dev tokens in tests; history is never cascaded away |
+| 2026-11-13 | If the database can't be asked during a restore, the room still comes back | Losing every game to a database blip is worse than the rare roll-back it would block |

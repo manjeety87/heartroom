@@ -2,8 +2,8 @@
 
 _Update this file at the end of every working session (any agent, any device)._
 
-**Last updated:** 2026-11-13 (#19)
-**Phase:** Phase 1 done (owner checked on a phone) + UI redesign + Q2 spike done → Phase 2a in progress (#15–#19, #22, #23 done; next #20/#21 match persistence).
+**Last updated:** 2026-11-13 (#20/#21)
+**Phase:** Phase 1 done (owner checked on a phone) + UI redesign + Q2 spike done → Phase 2a in progress (#15–#23 done; Phase 2 left: owner checks on phones, then Phase 3 voice).
 
 ## Done
 
@@ -70,6 +70,15 @@ _Update this file at the end of every working session (any agent, any device)._
       back only with 2 of its players, else the lobby. Tested with a real server killed mid-game and a
       new process (same views, older copy can't roll back). Browser: "Bringing your game back…" screen,
       checkpoint kept in sessionStorage (a refresh after a restart works too). 305 tests.
+- [x] **Phase 2a #20/#21 match persistence** (2026-11-13): `matches`, `match_players`, `room_events`
+      (migration 0002). The game server writes every finished game in the background
+      (`persistence/store.ts`, one idempotent transaction): win_share 1/k, ranked only for a ranked
+      config (`GameModule.isRanked`; Bingo Classic 5×5) with ≥2 signed-in players, no seat auto-played
+      >2 times and the Asia/Kolkata daily pair cap of 10. Room events: created, closed (not on a
+      restart), kicked, restored. Restore now refuses a room closed on purpose and never revives a game
+      already written; a game lost because only one player came back is recorded as abandoned.
+      Development runs a local Postgres (`packages/db/src/dev-server.ts`, PGlite on :5433) shared by the
+      site and the server; tests use an in-memory Postgres (`@heartroom/db/testing`). 322 tests.
 
 ## Next
 
@@ -86,9 +95,10 @@ _Update this file at the end of every working session (any agent, any device)._
    Make your own, text size), a game at 5×5 and 8×8 (two-tap call), results, History step-through,
    sounds and vibration. Same commands as before (`build`, then `start`, open `/play/bingo`).
 4. **Phase 2a**, next steps in order:
-   - **#20/#21 match persistence + DB** (Neon project still to create: Q5). Then add the two restore
-     refusals that need the DB: a checkpoint whose `matchId` is already in `matches`, and a room with a
-     `closed` event (design doc › Restoring safely, rule 1).
+   - **Before launch (needs Q5):** create the Neon project with dev/production branches, set
+     `DATABASE_URL`/`DATABASE_URL_DIRECT`, run `pnpm db:migrate`. Not built yet: the daily job that
+     clears `matches.actions` after 30 days, "no human for 3 turns → abandoned", and the
+     "unranked if auto-played" rule only counts the server's moves per seat.
    - Room UI gaps: no countdown yet, so the host can only pick Chill (needs the deadline in the `game`
      message + clock offset); the room message doesn't carry the config, so after a refresh the host's
      grid picker shows Classic even if Quick is set; views aren't zod-checked (no `viewSchema` on the
@@ -118,13 +128,15 @@ _Update this file at the end of every working session (any agent, any device)._
 ## Run locally (any laptop, no .env needed)
 
 1. `pnpm install`
-2. Game server (port 2567): `pnpm --filter @heartroom/server dev`
+2. Everything at once: `pnpm dev` (database on 5433, game server on 2567, site on 3000). Or one per
+   terminal: `pnpm --filter @heartroom/db dev` (start this first), `pnpm --filter @heartroom/server dev`.
 3. Site (port 3000, required: the server checks logins against `localhost:3000`):
    laptop only `pnpm --filter @heartroom/web dev`; for phones `pnpm --filter @heartroom/web build` then
    `pnpm --filter @heartroom/web start`, and open `http://<laptop-ip>:3000/play` on the same Wi-Fi
    (allow Node.js on Private networks in Windows Firewall).
 4. A second player needs another browser or an incognito window (tabs of one browser are one guest).
-   Local data lives in `.data/pglite` (git-ignored); delete the folder to start fresh.
+   Local data lives in `.data/pglite` (git-ignored); stop the database and delete the folder to start
+   fresh. The site and server need the database running (sign-in, saving games).
 
 ## Notes for the next session
 
