@@ -24,20 +24,32 @@ const envSchema = z
   .object({
     NODE_ENV: optional(z.enum(["development", "test", "production"])).default("development"),
     PORT: optional(z.coerce.number().int().min(1).max(65_535)).default(2567),
-    ALLOWED_ORIGINS: originList,
+    /**
+     * Optional outside production: a phone on the LAN opens the site at http://<laptop-ip>:3000, which
+     * no fixed list can name, so development allows every origin. Production must list them.
+     */
+    ALLOWED_ORIGINS: optional(originList),
     LOG_LEVEL: optional(z.enum(["fatal", "error", "warn", "info", "debug", "trace"])).default(
       "info",
     ),
   })
   .superRefine((env, ctx) => {
-    if (env.NODE_ENV === "production" && env.ALLOWED_ORIGINS.includes("*")) {
+    if (env.NODE_ENV !== "production") return;
+    if (env.ALLOWED_ORIGINS === undefined) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["ALLOWED_ORIGINS"],
+        message: "required in production",
+      });
+    } else if (env.ALLOWED_ORIGINS.includes("*")) {
       ctx.addIssue({
         code: "custom",
         path: ["ALLOWED_ORIGINS"],
         message: "a wildcard is refused in production",
       });
     }
-  });
+  })
+  .transform((env) => ({ ...env, ALLOWED_ORIGINS: env.ALLOWED_ORIGINS ?? ["*"] }));
 
 export type Config = Readonly<z.infer<typeof envSchema> & { isProduction: boolean }>;
 

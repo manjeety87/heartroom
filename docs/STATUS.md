@@ -49,7 +49,7 @@ _Update this file at the end of every working session (any agent, any device)._
 2. **Phase 2a**, following the Q2 spike result: **#16 `GameRoom`** next (serial queue, `turnSeq`,
    per-viewer `view`, deadlines, reconnect/takeover). JWT verify needs `AUTH_JWKS_URL`, so either do
    #23 (auth) first or start with a dev-only token check that refuses to run in production. Then
-   #20–#23. Run the server: `ALLOWED_ORIGINS=http://localhost:3000 pnpm --filter @heartroom/server dev`.
+   #20–#23. Run the server (any shell, no env needed in development): `pnpm --filter @heartroom/server dev`.
    The room must honour
    `Deadline.key` / `onlyWhenAway`, give each joiner a free player colour, and keep names unique
    per room (`docs/design/ui-system.md` › Names, Player colours).

@@ -23,6 +23,14 @@ describe("parseConfig", () => {
     expect(run).not.toThrow(/not-a-url-secret/);
   });
 
+  it("when nothing is set in development, then boots and allows every origin", () => {
+    expect(parseConfig({})).toMatchObject({ ALLOWED_ORIGINS: ["*"], PORT: 2567 });
+  });
+
+  it("when production has no origin list, then refuses to boot", () => {
+    expect(() => parseConfig({ NODE_ENV: "production" })).toThrow(/ALLOWED_ORIGINS: required/);
+  });
+
   it("when production allows every origin, then refuses to boot", () => {
     expect(() => parseConfig({ NODE_ENV: "production", ALLOWED_ORIGINS: "*" })).toThrow(/wildcard/);
   });
