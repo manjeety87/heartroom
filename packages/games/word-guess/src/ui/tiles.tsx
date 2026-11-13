@@ -120,8 +120,9 @@ export function GameKeyboard({
     if (disabled) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
-      const target = event.target as HTMLElement | null;
-      if (target?.closest("input, textarea, [contenteditable]")) return;
+      // Typing in a real field (a name, a room code) is not a guess.
+      const target = event.target;
+      if (target instanceof Element && target.closest("input, textarea, [contenteditable]")) return;
       if (event.key === "Enter") onEnter();
       else if (event.key === "Backspace") onBackspace();
       else if (/^[a-z]$/i.test(event.key)) onLetter(event.key.toLowerCase());
@@ -137,7 +138,7 @@ export function GameKeyboard({
   const key =
     "grid h-12 min-w-0 flex-1 place-items-center rounded-tile text-body font-semibold uppercase touch-manipulation select-none focus-visible:outline-2 focus-visible:outline-pen disabled:opacity-50";
   return (
-    <div aria-label="Keyboard" role="group" className="flex flex-col gap-1.5">
+    <div aria-label="Keyboard" role="group" className="flex w-full max-w-lg flex-col gap-1.5">
       {ROWS.map((row, r) => (
         <div key={row} className="flex gap-1">
           {r === 2 && (
