@@ -17,6 +17,7 @@ import {
 
 const PROBLEM_COPY: Readonly<Record<VoiceProblem, string>> = {
   unavailable: "Voice isn’t available right now. The game still works.",
+  resting: "Voice is resting this month. The game still works.",
   dropped: "Voice dropped. Tap Join voice to come back.",
   removed: "You were taken out of voice.",
   idle: "Left voice: nobody else was in it for 3 minutes.",

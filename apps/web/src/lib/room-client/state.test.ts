@@ -60,6 +60,9 @@ describe("applyServerMessage", () => {
       0,
     );
     expect(state).toBe(pending);
+    expect(
+      applyServerMessage(pending, { type: "error", code: "VOICE_RESTING", message: "x" }, 0),
+    ).toBe(pending);
   });
 
   it("when the game moves on after a refusal, then the refusal is cleared; a resent view keeps it", () => {

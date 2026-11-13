@@ -30,7 +30,14 @@ export type VoiceStatus = "off" | "connecting" | "on";
 
 /** Why voice is off or the mic can't start, worded by the dock. */
 export type VoiceProblem =
-  "unavailable" | "dropped" | "removed" | "idle" | "mic_denied" | "mic_insecure" | "mic_failed";
+  | "unavailable"
+  | "resting"
+  | "dropped"
+  | "removed"
+  | "idle"
+  | "mic_denied"
+  | "mic_insecure"
+  | "mic_failed";
 
 export type VoiceState = {
   readonly status: VoiceStatus;
@@ -118,8 +125,8 @@ export async function joinVoice(): Promise<void> {
   if (store.getState().status !== "off") return;
   store.setState({ ...INITIAL, status: "connecting" });
   const answer = await requestVoiceToken();
-  if (answer === null) {
-    store.setState({ ...INITIAL, problem: "unavailable" });
+  if (typeof answer === "string") {
+    store.setState({ ...INITIAL, problem: answer });
     return;
   }
   const joining = new Room({
