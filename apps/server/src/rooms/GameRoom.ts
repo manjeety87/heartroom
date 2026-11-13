@@ -49,7 +49,12 @@ export type GameRoomDeps = {
   readonly voice: Voice;
   /** True once this month's voice minutes reach the cap: new voice tokens are refused. */
   readonly isVoiceResting: () => boolean;
+  /** Tests shorten this; production uses `SPECTATOR_VOICE_IDLE_MS`. */
+  readonly spectatorVoiceIdleMs?: number;
 };
+
+/** A spectator whose room tab has been hidden this long leaves voice (design doc › Voice). */
+export const SPECTATOR_VOICE_IDLE_MS = 3 * 60_000;
 
 /** Seconds a dropped player keeps their place (design doc › GameRoom › Reconnect). */
 const RECONNECT_SECONDS = 60;
@@ -100,6 +105,8 @@ export function createGameRoom(deps: GameRoomDeps) {
     private readonly bans = new Set<string>();
     /** Kept in room state (and checkpoints) so every new voice token also says canPublish: false. */
     private readonly micBlocked = new Set<string>();
+    /** People whose room tab is hidden; with the spectators' voice timers. */
+    private readonly hidden = new Map<string, { clear(): void } | null>();
     private readonly invalidMessages = createRateLimiter({ capacity: 10, windowMs: MINUTE });
     private readonly recentActionIds: string[] = [];
     private queue!: Queue;
@@ -244,6 +251,8 @@ export function createGameRoom(deps: GameRoomDeps) {
         this.log.info({ event: "taken_over", userId }, "taken_over");
       }
       this.hostId ??= userId;
+      // A new socket starts on screen; it says otherwise if its tab is hidden.
+      this.setVisible(userId);
       this.log.info({ event: "joined", userId }, "joined");
       this.afterPresenceChange();
       this.sendView(client);
@@ -265,6 +274,7 @@ export function createGameRoom(deps: GameRoomDeps) {
         client.leave(CLOSE_CODES.TAKEN_OVER);
         return;
       }
+      this.setVisible(member.userId);
       this.setConnected(client, true);
       this.sendView(client);
     }
@@ -285,6 +295,7 @@ export function createGameRoom(deps: GameRoomDeps) {
       if (this.hostId === member.userId) {
         this.hostId = nextHost([...this.members.values()], member.userId) ?? this.hostId;
       }
+      this.setVisible(member.userId);
       this.log.info({ event: "left", userId: member.userId }, "left");
       this.afterPresenceChange();
     }
@@ -338,6 +349,11 @@ export function createGameRoom(deps: GameRoomDeps) {
           return;
         case "voice_token":
           void this.onVoiceToken(client);
+          return;
+        case "presence":
+          void this.queue.enqueue(() => {
+            this.onPresence(client, message.isVisible);
+          });
           return;
         case "rematch_ready":
           this.sendError(client, "NOT_AVAILABLE_YET");
@@ -551,7 +567,7 @@ export function createGameRoom(deps: GameRoomDeps) {
       this.deadlineTimer = null;
       const deadline = this.phase === "playing" ? (this.match?.deadline() ?? null) : null;
       const now = Date.now();
-      const isAway = deadline !== null && !this.isSeatConnected(deadline.seat);
+      const isAway = deadline !== null && !this.isSeatPresent(deadline.seat);
       this.deadlineClock = trackDeadline(this.deadlineClock, deadline, now, isAway);
       if (deadline === null || this.deadlineClock === null || this.match === null) {
         this.broadcastDeadline(null);
@@ -614,9 +630,40 @@ export function createGameRoom(deps: GameRoomDeps) {
       if (this.phase === "playing") this.scheduleDeadline();
     }
 
-    private isSeatConnected(seat: number): boolean {
+    /** Present = connected with the room on screen; anything else is away for the turn clock. */
+    private isSeatPresent(seat: number): boolean {
       const userId = this.matchUsers[seat];
-      return userId !== undefined && this.members.get(userId)?.isConnected === true;
+      return (
+        userId !== undefined &&
+        this.members.get(userId)?.isConnected === true &&
+        !this.hidden.has(userId)
+      );
+    }
+
+    private onPresence(client: Client, isVisible: boolean) {
+      const member = this.memberOf(client);
+      if (member === undefined) return;
+      if (isVisible) {
+        this.setVisible(member.userId);
+      } else if (!this.hidden.has(member.userId)) {
+        // Players keep their voice (they're in the game); a spectator who wandered off doesn't.
+        const timer =
+          member.seat === null
+            ? this.clock.setTimeout(() => {
+                void deps.voice.remove(this.roomUid, member.userId);
+                this.log.info({ event: "voice_idle_removed", userId: member.userId }, "voice_idle");
+              }, deps.spectatorVoiceIdleMs ?? SPECTATOR_VOICE_IDLE_MS)
+            : null;
+        this.hidden.set(member.userId, timer);
+      } else {
+        return;
+      }
+      if (this.phase === "playing") this.scheduleDeadline();
+    }
+
+    private setVisible(userId: string) {
+      this.hidden.get(userId)?.clear();
+      this.hidden.delete(userId);
     }
 
     private viewerFor(member: Member): Viewer {

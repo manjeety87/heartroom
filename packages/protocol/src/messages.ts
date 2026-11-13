@@ -89,6 +89,15 @@ export const hostMessage = z.discriminatedUnion("kind", [
   hostTargetCommand("deny_knock"),
 ]);
 
+/**
+ * Whether the room is on screen (the Page Visibility API), sent when it changes. A hidden tab counts
+ * as away for an "away only" clock, and a spectator hidden for 3 minutes leaves voice.
+ */
+export const presenceMessage = z.strictObject({
+  type: z.literal("presence"),
+  isVisible: z.boolean(),
+});
+
 export const voiceTokenRequest = z.strictObject({ type: z.literal("voice_token") });
 export const rematchReadyMessage = z.strictObject({ type: z.literal("rematch_ready") });
 
@@ -98,6 +107,7 @@ export const clientMessage = z.union([
   hostMessage,
   voiceTokenRequest,
   rematchReadyMessage,
+  presenceMessage,
 ]);
 
 export type ClientMessage = z.infer<typeof clientMessage>;
