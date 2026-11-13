@@ -2,8 +2,8 @@
 
 _Update this file at the end of every working session (any agent, any device)._
 
-**Last updated:** 2026-11-13 (voice, first slice)
-**Phase:** Phase 2 code done (owner phone checks pending) → **Phase 3 voice in progress** (tokens, block-mic, voice dock done; webhooks + minutes cap next).
+**Last updated:** 2026-11-13 (voice minutes + cap)
+**Phase:** Phase 2 code done (owner phone checks pending) → **Phase 3 voice in progress** (tokens, block-mic, voice dock, webhooks + minutes cap done; owner audio check pending).
 
 ## Done
 
@@ -95,6 +95,15 @@ _Update this file at the end of every working session (any agent, any device)._
       `features/voice/VoiceDock.tsx` (sticky dock, chips with speaking ring, host Block mic). Checked in
       the browser **without** LiveKit keys (dock + "Voice isn't available" message); real audio not
       tried yet. 329 tests.
+- [x] **Phase 3, second slice: voice minutes** (2026-11-13): `POST /livekit/webhook` (signed body
+      checked with the API secret, 64 KB max, 404 while voice is off) → `voice_usage` (migration 0003; a
+      retried webhook opens no second session; crash leftovers closed at joined_at + 3 h on boot).
+      `voice/usage.ts` meter keeps the UTC month's minutes in memory; past `VOICE_MONTHLY_CAP_MINUTES`
+      tokens get `VOICE_RESTING` and the dock says "Voice is resting this month". Every
+      `participant_joined` asks the room again (`voiceGuards`): not in the room/kicked/banned → removed,
+      blocked → listen only. Tested on in-memory Postgres and over real HTTP; real LiveKit webhooks not
+      received yet (need a public URL). 338 tests. Restart `pnpm dev` once so the local database gets
+      `voice_usage`.
 
 ## Next
 
@@ -104,9 +113,10 @@ _Update this file at the end of every working session (any agent, any device)._
    voice on both, Mic on, talk; host blocks the other's mic (they go silent and see the banner), then
    allows it. **Phones:** the mic needs https; plain `http://<laptop-ip>` can only listen (the dock says
    so). Phone mic testing needs an https tunnel or the deployed site.
-   **Phase 3 next slice:** LiveKit webhook route (signature-checked) → `voice_usage` table, month-to-date
-   minutes, `VOICE_MONTHLY_CAP_MINUTES` refusal ("Voice is resting this month"), and ban/block re-checks on
-   `participant_joined`; spectators' voice dropped after 3 min away.
+   Webhooks (minutes metering) only arrive at a public URL: after a deploy, set the webhook in the
+   LiveKit project to `https://<game server>/livekit/webhook`. Locally, voice works without them.
+   **Phase 3 left:** spectators' voice dropped after 3 min away from the room screen (needs a client
+   presence message, also wanted for "away"); the Phase 3 check on a real Android phone and iPhone (Q4).
 1. **Owner check of a server restart** (not tried in a browser yet): in a game between two browsers,
    press Ctrl+C in the game-server terminal and start it again within a minute. Both screens should
    show "Bringing your game back…" and return to the same board, calls and turn. With only one
@@ -142,7 +152,7 @@ _Update this file at the end of every working session (any agent, any device)._
 | 0 | Workspace, engine, protocol, UI tokens | done 2026-11-11 |
 | 1 | Bingo rules + vs Computer (offline) | done 2026-11-11 (+ UI redesign) |
 | 2 | Rooms (Colyseus) + online Bingo + crash recovery | code done 2026-11-13; owner phone checks pending |
-| 3 | Voice (LiveKit) + host powers | in progress: tokens, block-mic, dock done; webhooks/cap next |
+| 3 | Voice (LiveKit) + host powers | code mostly done 2026-11-13: tokens, block-mic, dock, minutes + cap; spectator idle drop + phone check left |
 | 4 | Google login + history | not started |
 | 5 | Word Guess | not started |
 | 6 | Leaderboard | not started |
