@@ -24,7 +24,11 @@ describe("parseConfig", () => {
   });
 
   it("when nothing is set in development, then boots and allows every origin", () => {
-    expect(parseConfig({})).toMatchObject({ ALLOWED_ORIGINS: ["*"], PORT: 2567 });
+    expect(parseConfig({})).toMatchObject({
+      ALLOWED_ORIGINS: ["*"],
+      PORT: 2567,
+      AUTH_JWKS_URL: "http://localhost:3000/api/auth/jwks",
+    });
   });
 
   it("when production has no origin list, then refuses to boot", () => {
@@ -33,5 +37,12 @@ describe("parseConfig", () => {
 
   it("when production allows every origin, then refuses to boot", () => {
     expect(() => parseConfig({ NODE_ENV: "production", ALLOWED_ORIGINS: "*" })).toThrow(/wildcard/);
+  });
+
+  it("when production has no JWKS URL, then refuses to boot", () => {
+    const env = { NODE_ENV: "production", ALLOWED_ORIGINS: "https://heartroom.test" } as const;
+    expect(() => parseConfig(env)).toThrow(/AUTH_JWKS_URL: required/);
+    const withKeys = { ...env, AUTH_JWKS_URL: "https://heartroom.test/api/auth/jwks" };
+    expect(parseConfig(withKeys).AUTH_JWKS_URL).toBe("https://heartroom.test/api/auth/jwks");
   });
 });

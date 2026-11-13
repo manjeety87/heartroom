@@ -3,6 +3,7 @@ import { WebSocketTransport } from "@colyseus/ws-transport";
 import { Client, type Room } from "@colyseus/sdk";
 import { CLOSE_CODES, joinError, roomCodeInput, type JoinError } from "@heartroom/protocol";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { createTokenVerifier } from "../auth/verify-token.ts";
 import { createLogger } from "../logger.ts";
 import { createGameRoom } from "./GameRoom.ts";
 
@@ -19,7 +20,15 @@ beforeAll(async () => {
     transport: new WebSocketTransport(),
     greet: false,
     rooms: {
-      room: defineRoom(createGameRoom({ isProduction: false, log: createLogger("silent") })),
+      room: defineRoom(
+        createGameRoom({
+          verifyToken: createTokenVerifier({
+            isProduction: false,
+            keys: () => Promise.reject(new Error("dev tokens only")),
+          }),
+          log: createLogger("silent"),
+        }),
+      ),
     },
   });
   await server.listen(PORT);

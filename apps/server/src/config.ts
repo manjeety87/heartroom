@@ -20,6 +20,8 @@ const originList = z
   )
   .pipe(z.array(z.union([z.literal("*"), z.url()])).min(1));
 
+const DEV_JWKS_URL = "http://localhost:3000/api/auth/jwks";
+
 const envSchema = z
   .object({
     NODE_ENV: optional(z.enum(["development", "test", "production"])).default("development"),
@@ -29,12 +31,20 @@ const envSchema = z
      * no fixed list can name, so development allows every origin. Production must list them.
      */
     ALLOWED_ORIGINS: optional(originList),
+    /**
+     * The site's Better Auth key set. Development defaults to the site on this laptop (port 3000);
+     * a deploy must name it, because a wrong guess would lock every player out.
+     */
+    AUTH_JWKS_URL: optional(z.url()),
     LOG_LEVEL: optional(z.enum(["fatal", "error", "warn", "info", "debug", "trace"])).default(
       "info",
     ),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== "production") return;
+    if (env.AUTH_JWKS_URL === undefined) {
+      ctx.addIssue({ code: "custom", path: ["AUTH_JWKS_URL"], message: "required in production" });
+    }
     if (env.ALLOWED_ORIGINS === undefined) {
       ctx.addIssue({
         code: "custom",
@@ -49,7 +59,11 @@ const envSchema = z
       });
     }
   })
-  .transform((env) => ({ ...env, ALLOWED_ORIGINS: env.ALLOWED_ORIGINS ?? ["*"] }));
+  .transform((env) => ({
+    ...env,
+    ALLOWED_ORIGINS: env.ALLOWED_ORIGINS ?? ["*"],
+    AUTH_JWKS_URL: env.AUTH_JWKS_URL ?? DEV_JWKS_URL,
+  }));
 
 export type Config = Readonly<z.infer<typeof envSchema> & { isProduction: boolean }>;
 

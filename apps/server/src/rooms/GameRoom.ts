@@ -13,7 +13,7 @@ import {
   type RoomPhase,
   type SeatColorId,
 } from "@heartroom/protocol";
-import { verifyToken } from "../auth/verify-token.ts";
+import type { VerifyToken } from "../auth/verify-token.ts";
 import type { Logger } from "../logger.ts";
 import { newRoomCode } from "./codes.ts";
 import { msUntilDue, trackDeadline, type DeadlineClock } from "./deadline.ts";
@@ -23,7 +23,7 @@ import { createQueue, type Queue } from "./queue.ts";
 import { createRateLimiter } from "./rate-limit.ts";
 import { GAMES, isGameId } from "./registry.ts";
 
-export type GameRoomDeps = { readonly isProduction: boolean; readonly log: Logger };
+export type GameRoomDeps = { readonly verifyToken: VerifyToken; readonly log: Logger };
 
 /** Seconds a dropped player keeps their place (design doc › GameRoom › Reconnect). */
 const RECONNECT_SECONDS = 60;
@@ -95,8 +95,8 @@ export function createGameRoom(deps: GameRoomDeps) {
       this.log.info({ event: "room_created" }, "room_created");
     }
 
-    override onAuth(client: Client, rawOptions: unknown, context: AuthContext) {
-      const identity = verifyToken(context.token, deps);
+    override async onAuth(client: Client, rawOptions: unknown, context: AuthContext) {
+      const identity = await deps.verifyToken(context.token);
       if (identity === null) refuse(401, "UNAUTHORIZED");
       const { userId } = identity;
       const ip = context.ip ?? "unknown";
