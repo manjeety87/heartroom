@@ -14,6 +14,8 @@ export const ERROR_CODES = {
   INVALID_MESSAGE: "INVALID_MESSAGE",
   CHECKPOINT_REJECTED: "CHECKPOINT_REJECTED",
   INTERNAL: "INTERNAL",
+  NAME_TAKEN: "NAME_TAKEN",
+  NOT_AVAILABLE_YET: "NOT_AVAILABLE_YET",
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
@@ -31,6 +33,8 @@ export const ERROR_MESSAGES: Readonly<Record<ErrorCode, string>> = {
   INVALID_MESSAGE: "Something went wrong sending that.",
   CHECKPOINT_REJECTED: "That game can’t be resumed.",
   INTERNAL: "Something went wrong on our side.",
+  NAME_TAKEN: "Someone in this room already has that name.",
+  NOT_AVAILABLE_YET: "That isn’t available yet.",
 };
 
 /**

@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { createEndpoint, createRouter, defineServer, matchMaker } from "@colyseus/core";
+import { createEndpoint, createRouter, defineRoom, defineServer, matchMaker } from "@colyseus/core";
 import { WebSocketTransport } from "@colyseus/ws-transport";
 import { LIMITS } from "@heartroom/protocol";
 import { parseConfig } from "./config.ts";
 import { createLogger } from "./logger.ts";
 import { isAllowedOrigin } from "./origin.ts";
+import { createGameRoom } from "./rooms/GameRoom.ts";
 
 const config = (() => {
   try {
@@ -40,8 +41,8 @@ const transport = new WebSocketTransport({
 const server = defineServer({
   transport,
   greet: false,
-  // GameRoom (Phase 2a #16) registers here.
-  rooms: {},
+  // One room type for every game; the host picks the game inside the room.
+  rooms: { room: defineRoom(createGameRoom({ isProduction: config.isProduction, log })) },
   routes: createRouter({
     healthz: createEndpoint("/healthz", { method: "GET" }, () =>
       Promise.resolve({ ok: true, bootId, rooms: matchMaker.stats.local.roomCount }),

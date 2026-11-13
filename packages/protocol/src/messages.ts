@@ -98,6 +98,17 @@ export type ClientMessage = z.infer<typeof clientMessage>;
 export type HostMessage = z.infer<typeof hostMessage>;
 export type HostCommandKind = HostMessage["kind"];
 
+/**
+ * What a browser sends with `create` / `joinById`. Who the person is comes from the auth token, never
+ * from here; the colour is a wish, and the server gives the next free one if it is taken.
+ */
+export const joinOptions = z.strictObject({
+  nickname: nicknameInput,
+  color: z.enum(SEAT_COLOR_IDS).optional(),
+});
+
+export type JoinOptions = z.input<typeof joinOptions>;
+
 // ── server → client ─────────────────────────────────────────────────────────────────────────────
 
 export const ROOM_PHASES = ["lobby", "setup", "playing", "results"] as const;
@@ -143,6 +154,19 @@ export const errorMessage = z.strictObject({
   code: z.enum(ERROR_CODES),
   message: z.string().max(200),
 });
+
+/**
+ * Why a create/join was refused. It travels as the JSON text of the Colyseus join error's message,
+ * because a refused join has no socket to send a normal message on.
+ */
+export const joinError = z.strictObject({
+  code: z.enum(ERROR_CODES),
+  message: z.string().max(200),
+  /** With `NAME_TAKEN`: a free name to offer ("Riya 2"). */
+  suggestion: nickname.optional(),
+});
+
+export type JoinError = z.infer<typeof joinError>;
 
 export const voiceTokenMessage = z.strictObject({
   type: z.literal("voice_token"),
