@@ -36,6 +36,9 @@ const memberSnapshot = z.strictObject({
 });
 
 const matchSnapshot = z.strictObject({
+  /** The match's row id in `matches` once it is written; a written match is never revived. */
+  id: z.uuid(),
+  startedAt: z.number().int().nonnegative(),
   gameId: id,
   /** The game module's `version`; a server running another version refuses the checkpoint. */
   moduleVersion: z.number().int(),
@@ -63,6 +66,8 @@ export const snapshotSchema = z.strictObject({
   /** Which server process sealed it; a checkpoint from the running process is never restored. */
   bootId: id,
   roomId: z.string().length(6),
+  /** The room's own id (codes are reused); a room closed on purpose is never revived. */
+  roomUid: z.uuid(),
   /**
    * Counts every change to the room since it was created (not the game's own seq, which restarts
    * each game); the highest wins when players hold different checkpoints.

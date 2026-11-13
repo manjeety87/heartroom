@@ -47,6 +47,8 @@ export type MatchSetup = {
   readonly moduleVersion: number;
   /** The parsed config, as a checkpoint stores it. */
   readonly config: unknown;
+  /** The game allows this config to count towards rankings (`GameModule.isRanked`). */
+  readonly isRanked: boolean;
   readonly players: { readonly min: number; readonly max: number };
   /** Throws a RangeError when the config doesn't fit `seats` (e.g. a first seat that isn't there). */
   start(seats: number, seed: Uint8Array): Match;
@@ -69,6 +71,7 @@ export function prepareMatch<Config, State, Action, View extends Json>(
     gameId: module.id,
     moduleVersion: module.version,
     config,
+    isRanked: module.isRanked(config),
     players: module.players,
     start: (seats, seed) => begin(seats, seed).match,
     restore(seats, seed, history) {

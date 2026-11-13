@@ -17,6 +17,7 @@ function snapshot(overrides: Partial<RoomSnapshot> = {}): RoomSnapshot {
   return {
     bootId: "old-boot",
     roomId: "ABCDEF",
+    roomUid: "6f1c2a7e-3b4d-4e5f-8a9b-0c1d2e3f4a5b",
     seq: 4,
     issuedAt: NOW,
     hostId: "asha",
@@ -27,6 +28,8 @@ function snapshot(overrides: Partial<RoomSnapshot> = {}): RoomSnapshot {
     members: [member("asha", 0), member("bilal", 1), member("chitra", null)],
     setup: { gameId: "bingo", config: { size: 3 } },
     match: {
+      id: "0d9e8f7a-6b5c-4d3e-9f2a-1b0c9d8e7f6a",
+      startedAt: NOW - 60_000,
       gameId: "bingo",
       moduleVersion: 1,
       config: { size: 3 },

@@ -44,6 +44,7 @@ describe("parseConfig", () => {
       NODE_ENV: "production",
       ALLOWED_ORIGINS: "https://heartroom.test",
       CHECKPOINT_KEY: Buffer.alloc(32, 7).toString("base64"),
+      DATABASE_URL: "postgres://u:p@db.heartroom.test/heartroom",
     } as const;
     expect(() => parseConfig(env)).toThrow(/AUTH_JWKS_URL: required/);
     const withKeys = { ...env, AUTH_JWKS_URL: "https://heartroom.test/api/auth/jwks" };
@@ -55,5 +56,10 @@ describe("parseConfig", () => {
     const short = Buffer.alloc(16, 1).toString("base64");
     expect(() => parseConfig({ CHECKPOINT_KEY: short })).toThrow(/CHECKPOINT_KEY: must be base64/);
     expect(parseConfig({}).CHECKPOINT_KEY).toHaveLength(32);
+  });
+
+  it("when production has no database URL, then refuses to boot; development uses the local one", () => {
+    expect(() => parseConfig({ NODE_ENV: "production" })).toThrow(/DATABASE_URL: required/);
+    expect(parseConfig({}).DATABASE_URL).toMatch(/^postgres:\/\/.*127\.0\.0\.1:5433/);
   });
 });

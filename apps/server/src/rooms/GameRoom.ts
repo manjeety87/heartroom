@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Room, ServerError, type AuthContext, type Client } from "@colyseus/core";
 import { newSeed, type Viewer } from "@heartroom/engine";
 import {
@@ -23,6 +24,7 @@ import {
   type Sealer,
 } from "../checkpoint.ts";
 import type { Logger } from "../logger.ts";
+import type { MatchToRecord, RoomEventType, RoomStore } from "../persistence/store.ts";
 import { newRoomCode } from "./codes.ts";
 import { msUntilDue, trackDeadline, type DeadlineClock } from "./deadline.ts";
 import { prepareMatch, type Match, type MatchSetup } from "./match.ts";
@@ -38,6 +40,8 @@ export type GameRoomDeps = {
   readonly sealer: Sealer;
   /** This process's id: a checkpoint sealed by it is never "restored". */
   readonly bootId: string;
+  /** Matches and room events in Postgres. Never awaited by game play (only by a restore). */
+  readonly store: RoomStore;
 };
 
 /** Seconds a dropped player keeps their place (design doc › GameRoom › Reconnect). */
@@ -102,6 +106,13 @@ export function createGameRoom(deps: GameRoomDeps) {
     private deadlineTimer: { clear(): void } | null = null;
     /** The setup the current/last match was started with (the host may change `setup` afterwards). */
     private matchSetup: MatchSetup | null = null;
+    /** The current/last match's row id in `matches`, and when it started. */
+    private matchId = "";
+    private matchStartedAt = 0;
+    /** The room's own id for `room_events` (its code is reused once it closes). */
+    private roomUid: string = randomUUID();
+    /** Set by a deploy/Ctrl+C: closing then is not "closed on purpose", players will resume. */
+    private isShuttingDown = false;
     /** Bumped on every sealed checkpoint; orders checkpoints across games. */
     private checkpointSeq = 0;
     private isCheckpointDue = false;
@@ -124,18 +135,18 @@ export function createGameRoom(deps: GameRoomDeps) {
         // Someone else brought it back first: the browser joins that room instead.
         if (liveCodes.has(snapshot.roomId)) refuse(409, "ROOM_RESTORING");
         this.roomId = snapshot.roomId;
+        this.roomUid = snapshot.roomUid;
         this.restoring = {
           resumes: [],
           sessions: new Map(),
           timer: this.clock.setTimeout(() => {
-            void this.queue.enqueue(() => {
-              this.finishRestore();
-            });
+            void this.queue.enqueue(() => this.finishRestore());
           }, RESTORE_WINDOW_MS),
         };
       }
       liveCodes.add(this.roomId);
       this.log = deps.log.child({ roomId: this.roomId });
+      if (this.restoring === null) this.saveEvent("created");
       // Even with no moves, a fresh checkpoint every few minutes keeps a quiet room restorable.
       this.clock.setInterval(() => {
         this.markChanged();
@@ -192,9 +203,7 @@ export function createGameRoom(deps: GameRoomDeps) {
       if (this.restoring !== null) {
         this.restoring.sessions.set(client.sessionId, userId);
         if (this.everyoneBack()) {
-          void this.queue.enqueue(() => {
-            this.finishRestore();
-          });
+          void this.queue.enqueue(() => this.finishRestore());
         }
         return;
       }
@@ -268,12 +277,15 @@ export function createGameRoom(deps: GameRoomDeps) {
 
     /** A deploy or Ctrl+C: every browser is told to come back with its checkpoint. */
     override onBeforeShutdown() {
+      this.isShuttingDown = true;
       void this.disconnect(CLOSE_CODES.RESTARTING);
     }
 
     override onDispose() {
       liveCodes.delete(this.roomId);
       this.deadlineTimer?.clear();
+      // Everyone left: the room is over, so a checkpoint someone still holds must not revive it.
+      if (!this.isShuttingDown) this.saveEvent("closed", { reason: "empty" });
       this.log.info({ event: "room_closed" }, "room_closed");
     }
 
@@ -381,6 +393,7 @@ export function createGameRoom(deps: GameRoomDeps) {
           }
           this.bans.add(target.userId);
           this.clients.get(target.sessionId)?.leave(CLOSE_CODES.KICKED);
+          this.saveEvent("kicked", { userId: target.userId });
           this.log.info({ event: "kicked", userId: target.userId }, "kicked");
           return;
         }
@@ -417,6 +430,8 @@ export function createGameRoom(deps: GameRoomDeps) {
       }
       this.match = match;
       this.matchSetup = this.setup;
+      this.matchId = randomUUID();
+      this.matchStartedAt = Date.now();
       this.matchUsers = order.map((m) => m.userId);
       this.matchPlayers = order.map(({ userId, nickname, color }) => ({ userId, nickname, color }));
       this.gamesStarted++;
@@ -444,6 +459,7 @@ export function createGameRoom(deps: GameRoomDeps) {
           if (!member.isConnected) this.members.delete(member.userId);
         }
         this.log.info({ event: "match_finished" }, "match_finished");
+        this.saveMatch("finished");
         this.broadcastRoom();
         return;
       }
@@ -567,6 +583,83 @@ export function createGameRoom(deps: GameRoomDeps) {
       this.markChanged();
     }
 
+    // ── database ──────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * What the database says about a checkpoint's room and game. If it can't be asked, the room
+     * still comes back: losing everyone's game to a database blip is worse than the rare roll-back.
+     */
+    private async restoreFacts(
+      snapshot: RoomSnapshot,
+    ): Promise<{ isRoomClosed: boolean; isMatchRecorded: boolean }> {
+      try {
+        const [isRoomClosed, isMatchRecorded] = await Promise.all([
+          deps.store.isRoomClosed(snapshot.roomUid),
+          snapshot.match === null
+            ? Promise.resolve(false)
+            : deps.store.isMatchRecorded(snapshot.match.id),
+        ]);
+        return { isRoomClosed, isMatchRecorded };
+      } catch (error) {
+        this.log.warn({ event: "restore_check_failed", err: error }, "restore_check_failed");
+        return { isRoomClosed: false, isMatchRecorded: false };
+      }
+    }
+
+    private saveMatch(status: "finished") {
+      const match = this.match;
+      const setup = this.matchSetup;
+      if (match === null || setup === null) return;
+      const { seed, actions } = match.record();
+      this.persist("match_save_failed", () =>
+        deps.store.recordMatch({
+          id: this.matchId,
+          gameId: match.gameId,
+          moduleVersion: setup.moduleVersion,
+          config: setup.config,
+          configIsRanked: setup.isRanked,
+          seed,
+          startedAt: new Date(this.matchStartedAt),
+          endedAt: new Date(),
+          status,
+          users: [...this.matchUsers],
+          result: match.result(),
+          actions: [...actions] as MatchToRecord["actions"],
+        }),
+      );
+    }
+
+    /** A game lost in a restart that didn't have two of its players back. */
+    private saveAbandoned(saved: MatchSnapshot) {
+      this.persist("match_save_failed", () =>
+        deps.store.recordMatch({
+          id: saved.id,
+          gameId: saved.gameId,
+          moduleVersion: saved.moduleVersion,
+          config: saved.config,
+          configIsRanked: false,
+          seed: new Uint8Array(Buffer.from(saved.seed, "base64url")),
+          startedAt: new Date(saved.startedAt),
+          endedAt: new Date(),
+          status: "abandoned",
+          users: saved.users,
+          result: null,
+          actions: saved.actions,
+        }),
+      );
+    }
+
+    private saveEvent(type: RoomEventType, data?: Record<string, unknown>) {
+      this.persist("room_event_failed", () => deps.store.recordRoomEvent(this.roomUid, type, data));
+    }
+
+    /** Database writes never hold up the game: they run on their own and failures are logged. */
+    private persist(failure: string, write: () => Promise<void>) {
+      write().catch((error: unknown) => {
+        this.log.error({ event: failure, err: error }, failure);
+      });
+    }
+
     // ── checkpoints ───────────────────────────────────────────────────────────────────────────
 
     /** Seals once per burst of changes (a move changes the views and the room message together). */
@@ -589,6 +682,7 @@ export function createGameRoom(deps: GameRoomDeps) {
       return {
         bootId: deps.bootId,
         roomId: this.roomId,
+        roomUid: this.roomUid,
         seq: ++this.checkpointSeq,
         issuedAt: Date.now(),
         hostId: this.hostId,
@@ -608,6 +702,8 @@ export function createGameRoom(deps: GameRoomDeps) {
           this.match === null || record === undefined || setup === null
             ? null
             : {
+                id: this.matchId,
+                startedAt: this.matchStartedAt,
                 gameId: this.match.gameId,
                 moduleVersion: setup.moduleVersion,
                 config: setup.config,
@@ -641,17 +737,24 @@ export function createGameRoom(deps: GameRoomDeps) {
     }
 
     /** Rebuilds the room from the best checkpoint its players sent (design doc › Restoring safely). */
-    private finishRestore() {
+    private async finishRestore() {
       const restoring = this.restoring;
       if (restoring === null) return;
       this.restoring = null;
       restoring.timer.clear();
       const choice = chooseRestore(restoring.resumes, deps.bootId);
-      if (choice === null) {
+      const facts = choice === null ? null : await this.restoreFacts(choice.snapshot);
+      if (choice === null || facts === null || facts.isRoomClosed) {
         void this.disconnect(CLOSE_CODES.ROOM_CLOSED);
         return;
       }
-      const { snapshot, keepsGame } = choice;
+      const { snapshot } = choice;
+      // A game already written (finished or abandoned) can't come back: that is the roll-back attack.
+      const keepsGame = choice.keepsGame && !facts.isMatchRecorded;
+      this.roomUid = snapshot.roomUid;
+      if (snapshot.phase === "playing" && snapshot.match !== null && !keepsGame) {
+        if (!facts.isMatchRecorded) this.saveAbandoned(snapshot.match);
+      }
       const sessionOf = new Map(
         [...restoring.sessions].map(([sessionId, userId]) => [userId, sessionId]),
       );
@@ -664,13 +767,14 @@ export function createGameRoom(deps: GameRoomDeps) {
         snapshot.setup !== null && isGameId(snapshot.setup.gameId)
           ? prepareMatch(GAMES[snapshot.setup.gameId], snapshot.setup.config)
           : null;
-      // A game in progress needs two of its players back; finished results come back as they were.
-      const wantsGame = keepsGame || snapshot.phase === "results";
+      // Only a game still in progress comes back (with two of its players); results are already saved.
       const restored =
-        wantsGame && snapshot.match !== null ? this.restoreMatch(snapshot.match) : null;
+        keepsGame && snapshot.match !== null ? this.restoreMatch(snapshot.match) : null;
       if (restored !== null && snapshot.match !== null) {
         this.match = restored.match;
         this.matchSetup = restored.setup;
+        this.matchId = snapshot.match.id;
+        this.matchStartedAt = snapshot.match.startedAt;
         this.matchUsers = [...snapshot.match.users];
         this.matchPlayers = [...snapshot.match.players];
         this.phase = snapshot.phase;
@@ -712,6 +816,7 @@ export function createGameRoom(deps: GameRoomDeps) {
         { event: "checkpoint_restored", phase: this.phase, back: sessionOf.size },
         "checkpoint_restored",
       );
+      this.saveEvent("restored", { phase: this.phase });
       this.broadcastRoom();
       this.sendViews();
       if (this.phase === "playing") this.scheduleDeadline();

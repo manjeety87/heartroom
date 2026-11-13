@@ -1,3 +1,4 @@
+import { DEV_DATABASE_URL } from "@heartroom/db";
 import { z } from "zod";
 
 /**
@@ -47,6 +48,8 @@ const envSchema = z
      * a deploy must name it, because a wrong guess would lock every player out.
      */
     AUTH_JWKS_URL: optional(z.url()),
+    /** Neon pooled URL. Development defaults to the local database `pnpm dev` starts. */
+    DATABASE_URL: optional(z.url()),
     /** AES-256-GCM key for crash-recovery checkpoints. Rotation: move the old one to _PREVIOUS. */
     CHECKPOINT_KEY: optional(checkpointKey),
     CHECKPOINT_KEY_PREVIOUS: optional(checkpointKey),
@@ -56,7 +59,7 @@ const envSchema = z
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== "production") return;
-    for (const key of ["AUTH_JWKS_URL", "CHECKPOINT_KEY"] as const) {
+    for (const key of ["AUTH_JWKS_URL", "CHECKPOINT_KEY", "DATABASE_URL"] as const) {
       if (env[key] === undefined) {
         ctx.addIssue({ code: "custom", path: [key], message: "required in production" });
       }
@@ -80,6 +83,7 @@ const envSchema = z
     ALLOWED_ORIGINS: env.ALLOWED_ORIGINS ?? ["*"],
     AUTH_JWKS_URL: env.AUTH_JWKS_URL ?? DEV_JWKS_URL,
     CHECKPOINT_KEY: env.CHECKPOINT_KEY ?? DEV_CHECKPOINT_KEY,
+    DATABASE_URL: env.DATABASE_URL ?? DEV_DATABASE_URL,
   }));
 
 export type Config = Readonly<z.infer<typeof envSchema> & { isProduction: boolean }>;

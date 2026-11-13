@@ -3,10 +3,14 @@ import { defineRoom, defineServer, type Server } from "@colyseus/core";
 import { WebSocketTransport } from "@colyseus/ws-transport";
 import { Client, type Room } from "@colyseus/sdk";
 import { CLOSE_CODES, joinError, type JoinError } from "@heartroom/protocol";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createTokenVerifier } from "../auth/verify-token.ts";
 import { createSealer } from "../checkpoint.ts";
 import { createLogger } from "../logger.ts";
+import { openTestDb } from "@heartroom/db/testing";
+import { schema, type Db } from "@heartroom/db";
+import { eq } from "drizzle-orm";
+import { createDbStore, type RoomStore } from "../persistence/store.ts";
 import { createGameRoom } from "./GameRoom.ts";
 
 /**
@@ -18,6 +22,19 @@ import { createGameRoom } from "./GameRoom.ts";
 const PORT = 2652;
 const sealer = createSealer({ current: randomBytes(32) });
 let running: Server | null = null;
+// One database for both "processes", as in production.
+let db: Db;
+let closeDb: () => Promise<void>;
+let store: RoomStore;
+
+beforeAll(async () => {
+  ({ db, close: closeDb } = await openTestDb());
+  store = createDbStore(db);
+}, 30_000);
+
+afterAll(async () => {
+  await closeDb();
+});
 
 async function startServer(bootId: string): Promise<Server> {
   const server = defineServer({
@@ -32,6 +49,7 @@ async function startServer(bootId: string): Promise<Server> {
           }),
           log: createLogger("silent"),
           sealer,
+          store,
           bootId,
         }),
       ),
@@ -100,10 +118,11 @@ const GRID_A = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const GRID_B = [9, 8, 7, 6, 5, 4, 3, 2, 1];
 
 /** Asha (host) and Bilal in a started 3×3 game with both grids filled and two numbers called. */
-async function gameInProgress() {
+async function gameInProgress(host = "asha", guest = "bilal") {
   await startServer("boot-1");
-  const asha = wrap(await client("asha").create("room", { nickname: "Asha" }));
-  const bilal = wrap(await client("bilal").joinById(asha.room.roomId, { nickname: "Bilal" }));
+  // Each test seats its own people: the per-user create limit (5 a minute) spans the whole file.
+  const asha = wrap(await client(host).create("room", { nickname: "Asha" }));
+  const bilal = wrap(await client(guest).joinById(asha.room.roomId, { nickname: "Bilal" }));
   asha.send({ type: "host", kind: "config", gameId: "bingo", config: QUICK });
   await asha.until(() => asha.latest["room"]?.["gameId"] === "bingo");
   asha.send({ type: "host", kind: "start" });
@@ -194,6 +213,14 @@ describe("restoring a room after a restart", () => {
     await asha2.until(() => asha2.latest["room"] !== undefined);
     expect(asha2.latest["room"]).toMatchObject({ code, phase: "lobby", hostId: "dev-asha" });
     expect(asha2.latest["game"]).toBeUndefined();
+    // The lost game is on record as abandoned, so its checkpoint can never bring it back.
+    for (let waited = 0; waited < 3_000; waited += 20) {
+      if ((await db.select().from(schema.matches)).length > 0) break;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    expect(await db.select().from(schema.matches)).toMatchObject([
+      { status: "abandoned", ranked: false },
+    ]);
   }, 15_000); // waits out the 5 s restore window
 
   it("refuses an edited checkpoint and one from the server that is still running", async () => {
@@ -208,4 +235,26 @@ describe("restoring a room after a restart", () => {
       (await refusal(client("asha").create("room", { nickname: "Asha", resume: checkpoint }))).code,
     ).toBe("CHECKPOINT_REJECTED");
   });
+
+  it("when everyone left before the crash, then the room's old checkpoint can't revive it", async () => {
+    const { asha, bilal } = await gameInProgress("dina", "esha");
+    const checkpoint = asha.checkpoints.at(-1)!;
+    // Everyone leaves on purpose: the room closes and says so in room_events.
+    await Promise.all([asha.room.leave(true), bilal.room.leave(true)]);
+    for (let waited = 0; waited < 3_000; waited += 20) {
+      const closed = await db
+        .select()
+        .from(schema.roomEvents)
+        .where(eq(schema.roomEvents.type, "closed"));
+      if (closed.length > 0) break;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    await stopServer();
+    await startServer("boot-2");
+    const asha2 = wrap(
+      await client("dina").create("room", { nickname: "Asha", resume: checkpoint }),
+    );
+    await asha2.until(() => asha2.closedWith !== null);
+    expect(asha2.closedWith).toBe(CLOSE_CODES.ROOM_CLOSED);
+  }, 15_000);
 });

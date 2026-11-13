@@ -4,6 +4,8 @@ import { WebSocketTransport } from "@colyseus/ws-transport";
 import { LIMITS } from "@heartroom/protocol";
 import { createTokenVerifier } from "./auth/verify-token.ts";
 import { createSealer } from "./checkpoint.ts";
+import { connectPostgres } from "@heartroom/db";
+import { createDbStore } from "./persistence/store.ts";
 import { parseConfig } from "./config.ts";
 import { createLogger } from "./logger.ts";
 import { isAllowedOrigin } from "./origin.ts";
@@ -40,6 +42,9 @@ const sealer = createSealer({
   previous: config.CHECKPOINT_KEY_PREVIOUS,
 });
 
+// The game never waits on this: rooms write matches and events in the background.
+const store = createDbStore(connectPostgres(config.DATABASE_URL));
+
 const transport = new WebSocketTransport({
   maxPayload: LIMITS.MESSAGE_BYTES,
   beforeUpgrade(request) {
@@ -54,7 +59,7 @@ const server = defineServer({
   transport,
   greet: false,
   // One room type for every game; the host picks the game inside the room.
-  rooms: { room: defineRoom(createGameRoom({ verifyToken, log, sealer, bootId })) },
+  rooms: { room: defineRoom(createGameRoom({ verifyToken, log, sealer, bootId, store })) },
   routes: createRouter({
     healthz: createEndpoint("/healthz", { method: "GET" }, () =>
       Promise.resolve({ ok: true, bootId, rooms: matchMaker.stats.local.roomCount }),

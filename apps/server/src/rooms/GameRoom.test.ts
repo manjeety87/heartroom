@@ -7,6 +7,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createTokenVerifier } from "../auth/verify-token.ts";
 import { createSealer } from "../checkpoint.ts";
 import { createLogger } from "../logger.ts";
+import { openTestDb } from "@heartroom/db/testing";
+import { schema, type Db } from "@heartroom/db";
+import { createDbStore, type RoomStore } from "../persistence/store.ts";
 import { createGameRoom } from "./GameRoom.ts";
 
 /**
@@ -16,10 +19,15 @@ import { createGameRoom } from "./GameRoom.ts";
 
 const PORT = 2651;
 let server: Server;
+let db: Db;
+let closeDb: () => Promise<void>;
+let store: RoomStore;
 
 const sealer = createSealer({ current: randomBytes(32) });
 
 beforeAll(async () => {
+  ({ db, close: closeDb } = await openTestDb());
+  store = createDbStore(db);
   server = defineServer({
     transport: new WebSocketTransport(),
     greet: false,
@@ -32,6 +40,7 @@ beforeAll(async () => {
           }),
           log: createLogger("silent"),
           sealer,
+          store,
           bootId: "test-boot",
         }),
       ),
@@ -42,6 +51,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await server.gracefullyShutdown(false);
+  await closeDb();
 });
 
 type Message = { readonly type: string; readonly payload: Record<string, unknown> };
@@ -114,6 +124,16 @@ async function refusal(attempt: Promise<unknown>): Promise<JoinError> {
     return joinError.parse(JSON.parse((error as Error).message));
   }
   throw new Error("the join was not refused");
+}
+
+/** Polls an async read until it returns rows (background writes land a moment later). */
+async function eventually<T>(read: () => Promise<T[]>): Promise<T[]> {
+  for (let waited = 0; waited < 3_000; waited += 20) {
+    const rows = await read();
+    if (rows.length > 0) return rows;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  return read();
 }
 
 const until = async (check: () => boolean) => {
@@ -211,6 +231,12 @@ describe("GameRoom", () => {
     await a.waitFor("room", (r) => r["phase"] === "results");
     const final = await a.waitFor("game", (g) => g["seq"] === 7);
     expect(final["view"]).toMatchObject({ phase: "done", winners: [0, 1] });
+
+    // The server writes the match in the background: a shared win is half a win each.
+    const saved = await eventually(() => db.select().from(schema.matches));
+    expect(saved).toMatchObject([{ gameId: "bingo", status: "finished", playerCount: 2 }]);
+    const seats = await db.select().from(schema.matchPlayers);
+    expect(seats.map((p) => p.winShare)).toEqual([0.5, 0.5]);
 
     const beforeReveal = (raw: string[]) => raw.filter((m) => !m.includes('"reveal":{'));
     expect(beforeReveal(b.raw).some((m) => m.includes(JSON.stringify(GRID_A)))).toBe(false);
