@@ -18,6 +18,12 @@ function createAuth(env: AuthEnv, db: Db) {
     ...(env.baseUrl !== undefined && { baseURL: env.baseUrl }),
     database: drizzleAdapter(db, { provider: "pg", schema }),
     advanced: { ipAddress: { disableIpTracking: true } },
+    user: {
+      additionalFields: {
+        // Set by the person through `updateUser` when they tick the 18+ box; never at sign-up.
+        ageConfirmedAt: { type: "date", required: false, input: true },
+      },
+    },
     databaseHooks: {
       session: {
         create: {

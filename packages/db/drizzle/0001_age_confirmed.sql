@@ -1,0 +1,1 @@
+ALTER TABLE "user" ADD COLUMN "age_confirmed_at" timestamp with time zone;
