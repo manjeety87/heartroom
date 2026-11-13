@@ -21,8 +21,18 @@ const envSchema = z
     AUTH_SECRET: optional(z.string().min(32)),
     /** The site's public origin. Unset locally → taken from each request (localhost or the LAN IP). */
     AUTH_URL: optional(z.url()),
+    /** Google OAuth client (console.cloud.google.com). Sign-in with Google is hidden until both are set. */
+    GOOGLE_CLIENT_ID: optional(z.string().min(1)),
+    GOOGLE_CLIENT_SECRET: optional(z.string().min(1)),
   })
   .superRefine((env, ctx) => {
+    if ((env.GOOGLE_CLIENT_ID === undefined) !== (env.GOOGLE_CLIENT_SECRET === undefined)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["GOOGLE_CLIENT_SECRET"],
+        message: "set both GOOGLE_ values",
+      });
+    }
     if (env.VERCEL === undefined) return;
     for (const key of ["DATABASE_URL", "AUTH_SECRET", "AUTH_URL"] as const) {
       if (env[key] === undefined) {
@@ -41,6 +51,7 @@ export type AuthEnv = {
   readonly databaseUrl: string;
   readonly secret: string;
   readonly baseUrl: string | undefined;
+  readonly google: { readonly clientId: string; readonly clientSecret: string } | null;
 };
 
 export function parseAuthEnv(env: NodeJS.ProcessEnv): AuthEnv {
@@ -54,5 +65,9 @@ export function parseAuthEnv(env: NodeJS.ProcessEnv): AuthEnv {
     databaseUrl: parsed.data.DATABASE_URL ?? DEV_DATABASE_URL,
     secret: parsed.data.AUTH_SECRET ?? LOCAL_SECRET,
     baseUrl: parsed.data.AUTH_URL,
+    google:
+      parsed.data.GOOGLE_CLIENT_ID !== undefined && parsed.data.GOOGLE_CLIENT_SECRET !== undefined
+        ? { clientId: parsed.data.GOOGLE_CLIENT_ID, clientSecret: parsed.data.GOOGLE_CLIENT_SECRET }
+        : null,
   };
 }
