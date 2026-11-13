@@ -24,6 +24,7 @@ export function RoomScreen({ code }: { readonly code: string }) {
   const room = useRoom((s) => s.room);
   const me = useRoom((s) => s.me);
   const closed = useRoom((s) => s.closed);
+  const isRestoring = useRoom((s) => s.isRestoring);
   const profile = useProfile();
   const [rejoinError, setRejoinError] = useState<string | null>(null);
   const [preset, setPreset] = useState<PresetId>("classic");
@@ -72,6 +73,20 @@ export function RoomScreen({ code }: { readonly code: string }) {
     return (
       <Section title={`Join room ${code}`}>
         <NameStep submitLabel="Join room" onSubmit={join} initialError={rejoinError} />
+      </Section>
+    );
+  }
+
+  if (status === "resuming" || (isRestoring && room === null)) {
+    return (
+      <Section title="Bringing your game back…">
+        <p role="status" className="text-body text-pencil">
+          The game server restarted. Your board, calls and seat are on their way back.
+        </p>
+        <div
+          aria-busy
+          className="h-40 animate-pulse rounded-card bg-well motion-reduce:animate-none"
+        />
       </Section>
     );
   }

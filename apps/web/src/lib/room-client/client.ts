@@ -50,6 +50,8 @@ const lastRoomSchema = z.object({
   code: z.string(),
   nickname: z.string(),
   color: z.enum(SEAT_COLOR_IDS).optional(),
+  /** The room's newest checkpoint, so even a refresh after a server restart brings the game back. */
+  resume: z.string().optional(),
 });
 
 /** The room this tab is in, so a refresh rejoins it (the server gives the same user their seat). */
@@ -58,8 +60,8 @@ export function lastRoomFor(code: string): JoinOptions | null {
     const raw = window.sessionStorage.getItem(LAST_ROOM_KEY);
     const parsed = lastRoomSchema.safeParse(raw === null ? null : JSON.parse(raw));
     if (!parsed.success || parsed.data.code !== code) return null;
-    const { nickname, color } = parsed.data;
-    return { nickname, ...(color && { color }) };
+    const { nickname, color, resume } = parsed.data;
+    return { nickname, ...(color && { color }), ...(resume !== undefined && { resume }) };
   } catch {
     return null;
   }
@@ -92,19 +94,44 @@ function failureFrom(error: unknown): JoinFailure {
 }
 
 /**
+ * With a checkpoint the room may have been lost in a restart: join it if it is there (alive, or being
+ * rebuilt from someone else's checkpoint), otherwise bring it back; if another player beat us to
+ * that, join theirs.
+ */
+async function connect(client: Client, target: string | null, options: JoinOptions) {
+  if (target === null) return client.create("room", options);
+  if (options.resume === undefined) return client.joinById(target, options);
+  try {
+    return await client.joinById(target, options);
+  } catch (error) {
+    if (failureFrom(error).code !== "ROOM_NOT_FOUND") throw error;
+  }
+  try {
+    return await client.create("room", options);
+  } catch (error) {
+    if (failureFrom(error).code !== "ROOM_RESTORING") throw error;
+  }
+  return client.joinById(target, options);
+}
+
+/** A restart is a few seconds of downtime; spread everyone's return over 2–5 s. */
+const resumeDelayMs = () => 2_000 + Math.random() * 3_000;
+
+/**
  * Creates a room (`target` null) or joins one by code. Resolves to the room code, or to why it
  * failed; never throws. A second call while connected to the same room is a no-op.
  */
 export async function enterRoom(
   target: string | null,
   options: JoinOptions,
+  status: "connecting" | "resuming" = "connecting",
 ): Promise<{ ok: true; code: string } | { ok: false; failure: JoinFailure }> {
   const current = store.getState();
   if (room !== null && target === room.roomId && current.status !== "closed") {
     return { ok: true, code: room.roomId };
   }
   if (room !== null) await leaveRoom();
-  store.setState({ ...INITIAL_STATE, status: "connecting" });
+  store.setState({ ...INITIAL_STATE, status, isRestoring: status === "resuming" });
 
   let joined: Room;
   let me: string;
@@ -112,10 +139,7 @@ export async function enterRoom(
     me = (await ensureGuest()).id;
     const client = new Client(serverUrl());
     client.auth.token = await getGameToken();
-    joined =
-      target === null
-        ? await client.create("room", options)
-        : await client.joinById(target, options);
+    joined = await connect(client, target, options);
   } catch (error) {
     rememberRoom(null);
     store.setState({ ...INITIAL_STATE });
@@ -125,14 +149,18 @@ export async function enterRoom(
   room = joined;
   isLeaving = false;
   // Colyseus's own retry, from the first second: a phone that blinks off Wi-Fi comes straight back.
+  // About 15 s of tries; after that the checkpoint path below rejoins (or rebuilds after a crash).
   joined.reconnection.minUptime = 0;
-  joined.reconnection.maxRetries = 12;
+  joined.reconnection.maxRetries = 8;
   joined.reconnection.maxDelay = 5_000;
 
   joined.onMessage("*", (_type, payload: unknown) => {
     const parsed = serverMessage.safeParse(payload);
     if (!parsed.success) return; // Dropped: an older or newer server speaking another shape.
     store.setState((state) => applyServerMessage(state, parsed.data));
+    if (parsed.data.type === "checkpoint") {
+      rememberRoom(joined.roomId, { ...options, resume: parsed.data.checkpoint });
+    }
   });
   joined.onDrop(() => {
     store.setState({ status: "reconnecting" });
@@ -146,6 +174,21 @@ export async function enterRoom(
   joined.onLeave((code) => {
     if (room === joined) room = null;
     const reason = closedReasonFor(code, isLeaving);
+    const { checkpoint } = store.getState();
+    if ((reason === "restarting" || reason === "lost") && checkpoint !== null) {
+      store.setState({ status: "resuming", outbox: [] });
+      window.setTimeout(() => {
+        void enterRoom(joined.roomId, { ...options, resume: checkpoint }, "resuming").then(
+          (result) => {
+            if (result.ok) return;
+            // A refused checkpoint means the room is gone for good (closed, or too old).
+            const closed = result.failure.code === "CHECKPOINT_REJECTED" ? "room_closed" : "lost";
+            store.setState({ status: "closed", closed });
+          },
+        );
+      }, resumeDelayMs());
+      return;
+    }
     if (reason !== "lost" && reason !== "restarting") rememberRoom(null);
     store.setState({ status: "closed", closed: reason, outbox: [] });
   });

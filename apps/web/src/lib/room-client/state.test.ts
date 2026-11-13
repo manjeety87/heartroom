@@ -69,3 +69,11 @@ describe("closedReasonFor", () => {
     expect(closedReasonFor(1006, false)).toBe("lost");
   });
 });
+
+describe("checkpoints", () => {
+  it("keeps only the newest checkpoint", () => {
+    let state = applyServerMessage(live, { type: "checkpoint", checkpoint: "c1.one" });
+    state = applyServerMessage(state, { type: "checkpoint", checkpoint: "c1.two" });
+    expect(state.checkpoint).toBe("c1.two");
+  });
+});

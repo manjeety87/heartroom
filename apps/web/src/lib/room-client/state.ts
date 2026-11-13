@@ -11,7 +11,14 @@ import {
  * server messages; screens read it through selectors. No socket code here, so it is unit-tested.
  */
 
-export type ConnectionStatus = "idle" | "connecting" | "live" | "reconnecting" | "closed";
+export type ConnectionStatus =
+  | "idle"
+  | "connecting"
+  | "live"
+  | "reconnecting"
+  /** The server restarted; coming back with the last checkpoint (design doc › Deploys and crashes). */
+  | "resuming"
+  | "closed";
 
 export type ClosedReason =
   | "left"
@@ -42,6 +49,10 @@ export type RoomState = {
   /** The last refusal from the server; `id` changes so the same code twice still shows twice. */
   readonly notice: { readonly id: number; readonly code: ErrorCode } | null;
   readonly closed: ClosedReason | null;
+  /** The room's newest sealed checkpoint: opaque, only handed back after a restart. */
+  readonly checkpoint: string | null;
+  /** Back in after a restart, until the rebuilt room speaks (it waits up to 5 s for everyone). */
+  readonly isRestoring: boolean;
 };
 
 export const INITIAL_STATE: RoomState = {
@@ -52,6 +63,8 @@ export const INITIAL_STATE: RoomState = {
   outbox: [],
   notice: null,
   closed: null,
+  checkpoint: null,
+  isRestoring: false,
 };
 
 export function applyServerMessage(state: RoomState, message: ServerMessage): RoomState {
@@ -59,7 +72,7 @@ export function applyServerMessage(state: RoomState, message: ServerMessage): Ro
     case "room": {
       // A new game restarts `seq` at 0, so the last game's view must not outrank it.
       const isNewGame = message.phase === "playing" && state.room?.phase !== "playing";
-      return { ...state, room: message, ...(isNewGame && { game: null }) };
+      return { ...state, room: message, isRestoring: false, ...(isNewGame && { game: null }) };
     }
     case "game":
       // An older view can arrive after a newer one (a resend after a stale move); never go back.
@@ -83,6 +96,8 @@ export function applyServerMessage(state: RoomState, message: ServerMessage): Ro
         outbox: [],
         notice: { id: (state.notice?.id ?? 0) + 1, code: message.code },
       };
+    case "checkpoint":
+      return { ...state, checkpoint: message.checkpoint };
     case "voice_token":
     case "knock":
       return state;
