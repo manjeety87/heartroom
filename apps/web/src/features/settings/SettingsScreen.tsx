@@ -30,8 +30,9 @@ import {
   useThemeId,
 } from "@/lib/look";
 import { checkName, saveProfile, useProfile, type Profile } from "@/lib/profile";
+import { AccountSection } from "./AccountSection.tsx";
 
-export function SettingsScreen() {
+export function SettingsScreen({ isGoogleEnabled }: { readonly isGoogleEnabled: boolean }) {
   const profile = useProfile();
   const update = (change: Partial<Profile>) => {
     saveProfile({ ...profile, ...change });
@@ -51,6 +52,9 @@ export function SettingsScreen() {
             update({ color });
           }}
         />
+      </Section>
+      <Section title="Account">
+        <AccountSection isGoogleEnabled={isGoogleEnabled} />
       </Section>
       <Section title="Appearance">
         <SegmentedControl

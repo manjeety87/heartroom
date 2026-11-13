@@ -13,6 +13,7 @@ import {
   useHistory,
   type SavedGame,
 } from "./history.ts";
+import { OnlineGames } from "./OnlineGames.tsx";
 
 const dateFormat = new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" });
 const LEVEL_LABEL = { easy: "Easy", medium: "Medium", hard: "Hard" } as const;
@@ -32,6 +33,29 @@ export function HistoryScreen() {
       />
     );
   }
+  return (
+    <div className="flex flex-col gap-8">
+      <OnlineGames />
+      <section aria-labelledby="computer-games" className="flex flex-col gap-3">
+        <h2
+          id="computer-games"
+          className="font-display text-title font-bold tracking-tight text-ink"
+        >
+          vs Computer <span className="text-pencil">on this device</span>
+        </h2>
+        <ComputerGames games={games} onOpen={setOpenId} />
+      </section>
+    </div>
+  );
+}
+
+function ComputerGames({
+  games,
+  onOpen,
+}: {
+  readonly games: readonly SavedGame[];
+  readonly onOpen: (id: string) => void;
+}) {
   if (games.length === 0) {
     return (
       <div className="flex flex-col items-start gap-4 rounded-card bg-sheet p-6 shadow-float">
@@ -56,7 +80,7 @@ export function HistoryScreen() {
           <button
             type="button"
             onClick={() => {
-              setOpenId(game.id);
+              onOpen(game.id);
             }}
             className="flex w-full items-center gap-3 rounded-card bg-sheet p-4 text-left transition-transform duration-(--duration-press) ease-out active:scale-99 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pen motion-reduce:transition-none"
           >
