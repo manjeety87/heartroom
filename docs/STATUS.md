@@ -2,8 +2,8 @@
 
 _Update this file at the end of every working session (any agent, any device)._
 
-**Last updated:** 2026-11-12 (#23)
-**Phase:** Phase 1 done (owner checked on a phone) + UI redesign + Q2 spike done → Phase 2a in progress (#15–#18 + #23 done; next #22 web room screens).
+**Last updated:** 2026-11-12 (#22)
+**Phase:** Phase 1 done (owner checked on a phone) + UI redesign + Q2 spike done → Phase 2a in progress (#15–#18, #22, #23 done; next #19 checkpoints).
 
 ## Done
 
@@ -53,20 +53,32 @@ _Update this file at the end of every working session (any agent, any device)._
       `iss`, `aud`, `exp` pinned, 30 s skew); `dev:<id>` still works outside production. Locally the site
       uses PGlite in `.data/pglite` (no Neon needed). Tried for real: guest sign-in → `/token` → the
       server's verifier accepted it and refused a tampered one. 278 tests.
+- [x] **Phase 2a #22 web room screens** (2026-11-12): `/play` (start a room, join by code, link to vs
+      Computer) and `/r/[code]` (join with name + 18+ once, lobby, game, results, rematch).
+      `lib/room-client/` is the only Colyseus code (zustand store, pure `state.ts` with tests, SDK
+      auto-reconnect from the first second, outbox resent after a reconnect, refresh rejoins via
+      sessionStorage). Room message now has `matchPlayers` (names per game seat, since the room rotates
+      seats). `nicknameInput` blocks swearing/slurs (English, Hinglish, Hindi) and reserved names;
+      `user.age_confirmed_at` (migration 0001). Played for real in the browser against a scripted second
+      player: create → join → 4×4 game → shared win → refresh rejoined → rematch → leave; wrong code shows
+      its message; lobby checked at 375 px. 287 tests.
 
 ## Next
 
-1. **Owner check of the rest of the redesign** on a phone (Start game already confirmed): Settings (name, colour, every theme in light and dark,
+1. **Owner check of online rooms** on two phones (or a phone + laptop, different browsers so they are
+   different guests): run `pnpm --filter @heartroom/server dev` and the site on port 3000
+   (`build` + `start`), open `/play` on one, create a room, open the link on the other. Check: join with
+   18+, lobby, a 5×5 game, results, rematch, refresh mid-game (same seat), turn Wi-Fi off for 10 s
+   (reconnecting bar, then back), Leave.
+2. **Owner check of the rest of the redesign** on a phone (Start game already confirmed): Settings (name, colour, every theme in light and dark,
    Make your own, text size), a game at 5×5 and 8×8 (two-tap call), results, History step-through,
    sounds and vibration. Same commands as before (`build`, then `start`, open `/play/bingo`).
-2. **Phase 2a**, next steps in order:
-   - **#22 web room screens** (`/r/[code]`, `/room/[id]`, `lib/room-client.ts` with `@colyseus/sdk`
-     0.18.10): `client.auth.token = await getGameToken()` before each create/join (and again after an
-     `UNAUTHORIZED` refusal); run the site on port 3000 so the server's default JWKS URL finds it. The
-     18+ checkbox (`ageConfirmedAt`) and nickname profanity/reserved-word filter land with the nickname
-     screen (design doc #23 listed the filter; moved here). Send messages as `room.send(msg.type, msg)`, keep `reconnectionToken` and call
-     `reconnect` yourself (SDK auto-reconnect needs 5 s uptime), parse join refusals with `joinError`.
-   - Then #19 checkpoints, #20/#21 match persistence + DB.
+3. **Phase 2a**, next steps in order:
+   - **#19 checkpoints**, then #20/#21 match persistence + DB (Neon project still to create: Q5).
+   - Room UI gaps: no countdown yet, so the host can only pick Chill (needs the deadline in the `game`
+     message + clock offset); the room message doesn't carry the config, so after a refresh the host's
+     grid picker shows Classic even if Quick is set; views aren't zod-checked (no `viewSchema` on the
+     module yet); no knocks UI, no "new code", no voice (Phase 3).
    - Not built yet in the room (answer `NOT_AVAILABLE_YET`): knocks (late joiners are spectators
      for now), new code, mute/block mic (Phase 3), resume (#19), rematch_ready. "Away" means
      disconnected; a hidden tab doesn't count yet (needs a client presence message). Unknown codes
@@ -74,7 +86,7 @@ _Update this file at the end of every working session (any agent, any device)._
    The room must honour
    `Deadline.key` / `onlyWhenAway`, give each joiner a free player colour, and keep names unique
    per room (`docs/design/ui-system.md` › Names, Player colours).
-3. Still open: Q1 (pricing), Q3 (name check), Q4 (iOS voice), Q5 (server host).
+4. Still open: Q1 (pricing), Q3 (name check), Q4 (iOS voice), Q5 (server host).
 
 ## Phases
 

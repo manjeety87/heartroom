@@ -56,6 +56,8 @@ Storage keys: `heartroom.theme`, `heartroom.mode`, `heartroom.textSize`, `heartr
 
 - Rules: `nicknameInput` in `packages/protocol` (NFC, trimmed, spaces collapsed, 1–20 characters,
   at least one letter or digit). The web form and, later, the room server use the same schema.
+- `nicknameInput` also refuses swearing and slurs (English, Hinglish, Devanagari) and names that pose
+  as staff (admin, host, Heartroom…): "Pick a friendlier name." / "That name is reserved."
 - vs Computer refuses "Computer". **Rooms (Phase 2):** names are unique per room; the server refuses a
   duplicate on join with a suggestion ("Riya 2"). Accounts (Phase 4) do not make names globally unique.
 
@@ -74,6 +76,7 @@ Storage keys: `heartroom.theme`, `heartroom.mode`, `heartroom.textSize`, `heartr
 | | `ResultsReveal` | Headline, every grid, "Needed N more lines", Rematch |
 | | `SetupBar` | Tap in order / Shuffle (keeps tapped numbers) / Clear / Ready |
 | `apps/web` | `AppShell` | Translucent app bar + system-mode follower |
+| | `features/room/*` | `PlayStart`, `NameStep` (name + 18+ once), `RoomScreen`, `Lobby`, `RoomGame`, `ShareRoom` |
 | | `ErrorState` | Crash screen with one way forward |
 
 Game UIs take data as props and emit intents. They never import Next, storage or the network,
