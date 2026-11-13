@@ -4,19 +4,23 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
   },
   "scripts": {
+    "dev": "tsx src/dev-server.ts",
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate --config drizzle.config.ts",
     "typecheck": "tsc -p ."
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.16",
+    "@electric-sql/pglite-socket": "^0.2.19",
     "drizzle-orm": "^0.45.4",
     "postgres": "^4.1.1"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.31.11"
+    "drizzle-kit": "^0.31.11",
+    "tsx": "4.23.15"
   }
 }

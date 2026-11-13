@@ -1,4 +1,4 @@
-import { connectPostgres, openLocal, schema, type Db } from "@heartroom/db";
+import { connectPostgres, schema, type Db } from "@heartroom/db";
 import { GAME_JWT } from "@heartroom/protocol";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -51,20 +51,17 @@ function createAuth(env: AuthEnv, db: Db) {
 
 export type Auth = ReturnType<typeof createAuth>;
 
-async function openDb(env: AuthEnv): Promise<Db> {
-  return env.databaseUrl !== undefined ? connectPostgres(env.databaseUrl) : openLocal(env.localDb);
-}
-
 /**
- * One instance per server process. Kept on `globalThis` because `next dev` re-evaluates modules on
- * every edit, and PGlite refuses a second open of the same folder.
+ * One instance (and one connection pool) per server process. Kept on `globalThis` because `next dev`
+ * re-evaluates modules on every edit, which would otherwise open a new pool each time. Built on the
+ * first request, not at import, so `next build` needs no environment.
  */
-const cache = globalThis as typeof globalThis & { heartroomAuth?: Promise<Auth> };
+const cache = globalThis as typeof globalThis & { heartroomAuth?: Auth };
 
-export function getAuth(): Promise<Auth> {
-  cache.heartroomAuth ??= (async () => {
+export function getAuth(): Auth {
+  if (cache.heartroomAuth === undefined) {
     const env = parseAuthEnv(process.env);
-    return createAuth(env, await openDb(env));
-  })();
+    cache.heartroomAuth = createAuth(env, connectPostgres(env.databaseUrl));
+  }
   return cache.heartroomAuth;
 }

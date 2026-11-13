@@ -1,4 +1,4 @@
-import path from "node:path";
+import { DEV_DATABASE_URL } from "@heartroom/db";
 import { z } from "zod";
 
 /**
@@ -15,7 +15,7 @@ const optional = <T extends z.ZodType>(schema: T) =>
 const envSchema = z
   .object({
     VERCEL: optional(z.string()),
-    /** Neon pooled URL. Unset locally → PGlite in `<repo>/.data/pglite`. */
+    /** Neon pooled URL. Unset locally → the database `pnpm dev` starts (`DEV_DATABASE_URL`). */
     DATABASE_URL: optional(z.url()),
     /** Signs sessions and encrypts the JWT private key. At least 32 characters. */
     AUTH_SECRET: optional(z.string().min(32)),
@@ -38,8 +38,7 @@ const envSchema = z
 const LOCAL_SECRET = "heartroom-local-development-secret-not-for-deploys";
 
 export type AuthEnv = {
-  readonly databaseUrl: string | undefined;
-  readonly localDb: { readonly dataDir: string; readonly migrationsDir: string };
+  readonly databaseUrl: string;
   readonly secret: string;
   readonly baseUrl: string | undefined;
 };
@@ -51,14 +50,8 @@ export function parseAuthEnv(env: NodeJS.ProcessEnv): AuthEnv {
     // Names and reasons only, never a value.
     throw new Error(`Invalid auth environment: ${reasons.join("; ")}`);
   }
-  // `next dev` / `next start` run with apps/web as the working directory.
-  const repoRoot = path.resolve(process.cwd(), "../..");
   return {
-    databaseUrl: parsed.data.DATABASE_URL,
-    localDb: {
-      dataDir: path.join(repoRoot, ".data", "pglite"),
-      migrationsDir: path.join(repoRoot, "packages", "db", "drizzle"),
-    },
+    databaseUrl: parsed.data.DATABASE_URL ?? DEV_DATABASE_URL,
     secret: parsed.data.AUTH_SECRET ?? LOCAL_SECRET,
     baseUrl: parsed.data.AUTH_URL,
   };

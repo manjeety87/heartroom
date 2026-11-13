@@ -1,4 +1,18 @@
-import { boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  boolean,
+  check,
+  customType,
+  index,
+  integer,
+  jsonb,
+  numeric,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 /**
  * Better Auth's tables (core + the anonymous and JWT plugins). Field names are the ones Better Auth
@@ -89,3 +103,78 @@ export const jwks = pgTable("jwks", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
 });
+
+// ── games ──────────────────────────────────────────────────────────────────────────────────────
+
+const bytea = customType<{ data: Uint8Array; driverData: Uint8Array }>({
+  dataType: () => "bytea",
+  fromDriver: (value) => new Uint8Array(value),
+});
+
+/**
+ * One finished or abandoned online game, written once by the game server (`id` is made there, so a
+ * repeated write is a no-op). Everything game-specific lives in jsonb, so a new game needs no
+ * migration. `actions` is cleared after 30 days to keep the database small; results stay.
+ */
+export const matches = pgTable(
+  "matches",
+  {
+    id: uuid("id").primaryKey(),
+    gameId: text("game_id").notNull(),
+    moduleVersion: integer("module_version").notNull(),
+    config: jsonb("config").notNull(),
+    seed: bytea("seed").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true }).notNull(),
+    status: text("status", { enum: ["finished", "abandoned"] }).notNull(),
+    /** Computed by the server when the match is written; clients never send stats. */
+    ranked: boolean("ranked").notNull(),
+    playerCount: integer("player_count").notNull(),
+    actions: jsonb("actions"),
+  },
+  (table) => [
+    index("matches_game_id_ended_at_idx").on(table.gameId, table.endedAt),
+    check("matches_status_check", sql`${table.status} in ('finished', 'abandoned')`),
+  ],
+);
+
+export const matchPlayers = pgTable(
+  "match_players",
+  {
+    matchId: uuid("match_id")
+      .notNull()
+      .references(() => matches.id, { onDelete: "cascade" }),
+    /**
+     * Null for a seat whose person has no account row (development identities) or deleted their
+     * account (their rows are nulled first). RESTRICT: history is never lost by a cascade; a guest's
+     * rows move to their Google account before the guest row is deleted.
+     */
+    userId: text("user_id").references(() => user.id, { onDelete: "restrict" }),
+    seat: integer("seat").notNull(),
+    result: text("result", { enum: ["win", "loss", "draw"] }),
+    placement: integer("placement"),
+    /** 1/k for a win shared by k players, 1 for a sole win, 0 otherwise. */
+    winShare: numeric("win_share", { precision: 8, scale: 6, mode: "number" }).notNull(),
+    details: jsonb("details"),
+  },
+  (table) => [
+    primaryKey({ columns: [table.matchId, table.seat] }),
+    index("match_players_user_id_idx").on(table.userId),
+  ],
+);
+
+/**
+ * What happened to rooms: created, closed (and why), kicked, locked… `roomId` is the room's own
+ * uuid, not its code (codes are reused). A `closed` row stops a crash checkpoint from reviving it.
+ */
+export const roomEvents = pgTable(
+  "room_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    roomId: uuid("room_id").notNull(),
+    type: text("type").notNull(),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+    data: jsonb("data"),
+  },
+  (table) => [index("room_events_room_id_type_idx").on(table.roomId, table.type)],
+);
