@@ -55,3 +55,4 @@ Append-only. One line per decision: date, the decision, and the reason. Details 
 | 2026-11-11 | History on the device = (config, seed, actions, players), rebuilt with `replay()`; newest 50 | Shows what really happened; same record the server will store |
 | 2026-11-11 | Names: shared `nicknameInput`; unique per room (server, Phase 2), not globally | Friends' rooms need no global namespace |
 | 2026-11-11 | No `<form onSubmit>` that can submit natively; function actions or buttons | A pre-hydration tap reloaded the page and could put a name in the URL |
+| 2026-11-12 | Q2 closed: Colyseus 0.18 (`@colyseus/core` + `ws-transport`, client `@colyseus/sdk`), plain state + per-viewer messages; zod `safeParse` in handlers, not Colyseus `validate()` | Spike passed; `validate()` disconnects on a bad payload instead of letting us reply with an error |

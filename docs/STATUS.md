@@ -2,8 +2,8 @@
 
 _Update this file at the end of every working session (any agent, any device)._
 
-**Last updated:** 2026-11-11
-**Phase:** Phase 1 done (owner checked on a phone) + UI redesign → next is the Colyseus spike (Q2), then Phase 2a.
+**Last updated:** 2026-11-12
+**Phase:** Phase 1 done (owner checked on a phone) + UI redesign + Q2 spike done → next is Phase 2a.
 
 ## Done
 
@@ -36,10 +36,10 @@ _Update this file at the end of every working session (any agent, any device)._
 1. **Owner check of the rest of the redesign** on a phone (Start game already confirmed): Settings (name, colour, every theme in light and dark,
    Make your own, text size), a game at 5×5 and 8×8 (two-tap call), results, History step-through,
    sounds and vibration. Same commands as before (`build`, then `start`, open `/play/bingo`).
-2. **Open Question Q2 (Colyseus spike)**, then **Phase 2a** (#15–#18, #20–#23). The room must honour
+2. **Phase 2a** (#15–#18, #20–#23), following the Q2 spike result. The room must honour
    `Deadline.key` / `onlyWhenAway`, give each joiner a free player colour, and keep names unique
    per room (`docs/design/ui-system.md` › Names, Player colours).
-3. Still open: Q1 (pricing), Q3 (name check).
+3. Still open: Q1 (pricing), Q3 (name check), Q4 (iOS voice), Q5 (server host).
 
 ## Phases
 

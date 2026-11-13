@@ -104,9 +104,8 @@ The first release succeeds when all of these hold:
 *   **Q1: Pricing to confirm.** Verify on the official pages: LiveKit free-tier minutes and Ship-plan
     concurrency limits, the Fly.io/Railway minimum cost, and the Neon free storage. Some figures in the
     review came from third-party pages.
-*   **Q2: Colyseus version and Schema use.** Confirm that the latest Colyseus release supports keeping
-    game state as plain objects and sending per-client messages only, without fighting its Schema sync.
-    Spike this before the room phase.
+*   **Q2: Colyseus version and Schema use.** *Answered 2026-11-12 (spike, see "Sync model" › Q2 spike
+    result):* Colyseus 0.18 works with plain-object state and per-client messages only.
 *   **Q3: Brand check.** Run a trademark and domain search for "Heartroom" before any public launch. A quick search found no game app with this
     name. Also check that the name does not read as a dating app in the landing copy.
 *   **Q4: iOS Safari voice.** Check on a real iPhone how voice behaves after the tab goes to the
@@ -334,7 +333,31 @@ of messages:
   (`seq` ≠ last + 1) sends `resync` and gets the full view. Views are small (a 5×5 grid, 25 called
   numbers, at most 10 guess rows), so sending the whole view each time is cheaper than writing diffs.
 
-Open Question Q2 checks this approach against the current Colyseus release in a one-day spike.
+#### Q2 spike result (2026-11-12, Colyseus 0.18.12 server + `@colyseus/sdk` 0.18.10, Node 22.12)
+
+A throwaway two-client script passed every check: a room with no `setState` (the client's `state` is
+`null`), per-viewer `client.send("game", { seq, view })` with neither player's secret in the other's
+raw frames, `broadcast("room", …)`, a `this.clock` timer, `static onAuth(token)` refusing a bad token,
+a stale `turnSeq` answered with an error, and a dropped client that reconnected with its
+`reconnectionToken` and received a full view including the call it missed. What the room must do
+because of 0.18's behaviour:
+
+* **Parse messages with zod in the handler, not with Colyseus `validate()`.** A payload that fails a
+  `validate()` schema makes Colyseus close the client's connection (`CloseCode.WITH_ERROR`). We want
+  a `BAD_MESSAGE` error reply and a live connection, so handlers take `unknown` and call
+  `safeParse` with the `packages/protocol` schema.
+* **Drops use `onDrop` + `onReconnect`** (0.18 splits them from `onLeave`). `onDrop` awaits
+  `allowReconnection(client, 60)` inside `try/catch`: the promise rejects when the room disposes or
+  the time runs out, and that is when the seat is released.
+* **The SDK auto-reconnects only after 5 s of uptime** (`reconnection.minUptime`). `room-client.ts`
+  keeps the `reconnectionToken` and calls `client.reconnect(token)` itself as the fallback.
+* **Colyseus closes a client that sends more than `maxMessagesPerSecond`.** Set it explicitly
+  (e.g. 10); a real player never comes close.
+* **Async handlers can interleave**, since Colyseus does not await them. The room's own serial queue
+  (above) stays necessary once a handler awaits anything (DB writes).
+* **Dependencies:** `@colyseus/core` + `@colyseus/ws-transport` (not the `colyseus` meta-package,
+  which pulls Redis, monitor and playground). Peers: `@colyseus/schema` ^5 (installed, unused) and
+  zod ^4 (we already use 4.6). Node ≥ 22.
 
 ### Voice (VoiceAdapter in the game server)
 
