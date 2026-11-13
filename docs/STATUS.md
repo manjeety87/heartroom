@@ -2,8 +2,8 @@
 
 _Update this file at the end of every working session (any agent, any device)._
 
-**Last updated:** 2026-11-13 (voice minutes + cap)
-**Phase:** Phase 2 code done (owner phone checks pending) → **Phase 3 voice in progress** (tokens, block-mic, voice dock, webhooks + minutes cap done; owner audio check pending).
+**Last updated:** 2026-11-13 (presence; Phase 3 code done)
+**Phase:** Phase 2 and Phase 3 code done (owner checks pending, see the owner to-do) → next: **Phase 4** (Google login + history).
 
 ## Done
 
@@ -104,6 +104,10 @@ _Update this file at the end of every working session (any agent, any device)._
       blocked → listen only. Tested on in-memory Postgres and over real HTTP; real LiveKit webhooks not
       received yet (need a public URL). 338 tests. Restart `pnpm dev` once so the local database gets
       `voice_usage`.
+- [x] **Presence** (2026-11-13): client message `presence {isVisible}` on every tab hide/show. A hidden
+      tab is away: an "away only" turn clock runs for that player and pauses when they're back. A
+      spectator hidden for 3 min is removed from voice; players keep theirs. 339 tests. Phase 3 code is
+      done; the phone voice check (owner to-do) closes it.
 
 ## Owner to-do (only the owner can do these; tick them here when done)
 
@@ -133,14 +137,12 @@ _Update this file at the end of every working session (any agent, any device)._
 
 ## Next (code, in order)
 
-1. **Presence** (in progress 2026-11-13): the browser says when the room tab is hidden. Spectators
-   hidden for 3 min lose their voice (Phase 3), and a hidden tab counts as away for the turn clock.
-2. **Phase 4: Google login + history.**
-3. Gaps to close before launch: the daily job that clears `matches.actions` after 30 days; "no human
+1. **Phase 4: Google login + history.**
+2. Gaps to close before launch: the daily job that clears `matches.actions` after 30 days; "no human
    for 3 turns → abandoned"; "unranked if auto-played" only counts the server's moves per seat; views
    aren't zod-checked (no `viewSchema` yet); no custom grid size in the room (presets only); unknown
    codes aren't rate-limited (Colyseus answers before `onAuth`): limit the matchmake route.
-4. Not built in the room yet (answer `NOT_AVAILABLE_YET`): knocks (late joiners are spectators for now),
+3. Not built in the room yet (answer `NOT_AVAILABLE_YET`): knocks (late joiners are spectators for now),
    new code, the host's "mute" (block mic covers it), rematch_ready.
 
 ## Phases
@@ -150,7 +152,7 @@ _Update this file at the end of every working session (any agent, any device)._
 | 0 | Workspace, engine, protocol, UI tokens | done 2026-11-11 |
 | 1 | Bingo rules + vs Computer (offline) | done 2026-11-11 (+ UI redesign) |
 | 2 | Rooms (Colyseus) + online Bingo + crash recovery | code done 2026-11-13; owner phone checks pending |
-| 3 | Voice (LiveKit) + host powers | code mostly done 2026-11-13: tokens, block-mic, dock, minutes + cap; spectator idle drop + phone check left |
+| 3 | Voice (LiveKit) + host powers | code done 2026-11-13; owner voice checks pending (needs LiveKit keys) |
 | 4 | Google login + history | not started |
 | 5 | Word Guess | not started |
 | 6 | Leaderboard | not started |

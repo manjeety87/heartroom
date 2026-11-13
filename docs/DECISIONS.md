@@ -85,4 +85,6 @@ Append-only. One line per decision: date, the decision, and the reason. Details 
 | 2026-11-13 | Voice months are UTC calendar months; no cap when `VOICE_MONTHLY_CAP_MINUTES` is unset | Matches LiveKit's billing; local development needs no cap |
 | 2026-11-13 | Over the cap is its own code, `VOICE_RESTING` (not `VOICE_UNAVAILABLE`) | The UI must say "Voice is resting this month", which is different from "not available right now" |
 | 2026-11-13 | The webhook route lives on the game server (`/livekit/webhook`), and a join to a room that no longer exists is removed | The game server already holds the rooms and the LiveKit secret; voice must not outlive its room |
+| 2026-11-13 | A hidden room tab (Page Visibility) counts as away, like a disconnect | "Away only" should cover switching to WhatsApp mid-game, not only a dropped connection |
+| 2026-11-13 | Only spectators lose voice after 3 min hidden; players keep it | Players in a game are still in the room; a spectator's open tab shouldn't burn voice minutes |
 | 2026-11-13 | The host's own "mute" command stays `NOT_AVAILABLE_YET`; mute is each person's own mic button | Block mic covers safety; muting someone else's track adds nothing a block doesn't |
