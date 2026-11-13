@@ -92,9 +92,14 @@ describe("codes", () => {
     expect(Object.keys(ERROR_MESSAGES).sort()).toEqual(Object.values(ERROR_CODES).sort());
   });
 
-  it("keeps close codes unique and in the application range", () => {
+  it("keeps close codes unique, in the application range and clear of Colyseus's own", () => {
     const codes = Object.values(CLOSE_CODES);
     expect(new Set(codes).size).toBe(codes.length);
-    for (const code of codes) expect(code).toBeGreaterThanOrEqual(4000);
+    // Colyseus 0.18 uses CONSENTED 4000, SERVER_SHUTDOWN 4001, WITH_ERROR 4002,
+    // FAILED_TO_RECONNECT 4003 and MAY_TRY_RECONNECT 4010.
+    for (const code of codes) {
+      expect(code).toBeGreaterThanOrEqual(4100);
+      expect(code).toBeLessThan(5000);
+    }
   });
 });

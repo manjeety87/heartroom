@@ -33,13 +33,19 @@ export const ERROR_MESSAGES: Readonly<Record<ErrorCode, string>> = {
   INTERNAL: "Something went wrong on our side.",
 };
 
-/** WebSocket close codes (4000–4999 is the application range). */
+/**
+ * WebSocket close codes. 4000–4999 is the application range, but Colyseus 0.18 already uses
+ * 4000–4003 and 4010 (and its client auto-reconnects on 4010), so ours start at 4100. None of these
+ * makes the client reconnect by itself: a kicked or banned player must not bounce straight back.
+ */
 export const CLOSE_CODES = {
-  RESTARTING: 4001,
-  KICKED: 4002,
-  BANNED: 4003,
-  TAKEN_OVER: 4004,
-  ROOM_CLOSED: 4005,
+  RESTARTING: 4101,
+  KICKED: 4102,
+  BANNED: 4103,
+  TAKEN_OVER: 4104,
+  ROOM_CLOSED: 4105,
+  /** Too many invalid messages in a minute. */
+  INVALID_MESSAGES: 4106,
 } as const;
 
 export type CloseCode = (typeof CLOSE_CODES)[keyof typeof CLOSE_CODES];

@@ -57,3 +57,4 @@ Append-only. One line per decision: date, the decision, and the reason. Details 
 | 2026-11-11 | No `<form onSubmit>` that can submit natively; function actions or buttons | A pre-hydration tap reloaded the page and could put a name in the URL |
 | 2026-11-12 | Q2 closed: Colyseus 0.18 (`@colyseus/core` + `ws-transport`, client `@colyseus/sdk`), plain state + per-viewer messages; zod `safeParse` in handlers, not Colyseus `validate()` | Spike passed; `validate()` disconnects on a bad payload instead of letting us reply with an error |
 | 2026-11-12 | Pin exact Colyseus versions (`@colyseus/core` 0.18.28, `ws-transport` 0.18.5, `schema` 5.0.46); install scripts denied for esbuild and msgpackr-extract | Versions the spike ran; neither script is needed (prebuilt binary / pure-JS fallback) |
+| 2026-11-12 | Close codes move to 4101–4106 (changed, not added: nothing shipped uses them) | Colyseus 0.18 owns 4000–4003 and 4010; `KICKED 4002` was its `WITH_ERROR` |

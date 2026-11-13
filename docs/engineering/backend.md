@@ -77,7 +77,8 @@ packages/db/src         schema.ts, client.ts (factory), migrations/
   else becomes `INTERNAL`, is logged at `error` and sent to Sentry.
 - Rule errors never mention hidden data ("not your turn" is fine, "that number is on seat 2's grid" is not).
 - On `unhandledRejection` / `uncaughtException`: log at fatal, flush and `exit(1)`.
-- WS close codes 4000–4999: `RESTARTING 4001`, `KICKED 4002`, `BANNED 4003`, `TAKEN_OVER 4004`, `ROOM_CLOSED 4005`.
+- WS close codes from 4100 (Colyseus uses 4000–4003 and 4010): `RESTARTING 4101`, `KICKED 4102`,
+  `BANNED 4103`, `TAKEN_OVER 4104`, `ROOM_CLOSED 4105`, `INVALID_MESSAGES 4106`.
 
 ## Validation
 
