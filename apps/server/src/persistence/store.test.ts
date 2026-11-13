@@ -38,6 +38,7 @@ function match(overrides: Partial<MatchToRecord> = {}): MatchToRecord {
     endedAt: NOON,
     status: "finished",
     users: ["asha", "bilal"],
+    nicknames: ["Asha", "Bilal"],
     result: { winners: [0], placements: [1, 2], details: null },
     actions: [{ seat: 0, by: "player" }],
     ...overrides,
@@ -59,8 +60,8 @@ describe("createDbStore", () => {
       playerCount: 2,
     });
     expect((await rowsFor(m.id)).sort((x, y) => x.seat - y.seat)).toMatchObject([
-      { userId: "asha", seat: 0, result: "win", placement: 1, winShare: 1 },
-      { userId: "bilal", seat: 1, result: "loss", placement: 2, winShare: 0 },
+      { userId: "asha", seat: 0, nickname: "Asha", result: "win", placement: 1, winShare: 1 },
+      { userId: "bilal", seat: 1, nickname: "Bilal", result: "loss", placement: 2, winShare: 0 },
     ]);
     expect(await store.isMatchRecorded(m.id)).toBe(true);
     expect(await store.isMatchRecorded(randomUUID())).toBe(false);

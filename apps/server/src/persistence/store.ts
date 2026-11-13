@@ -43,6 +43,8 @@ export type MatchToRecord = {
   readonly status: "finished" | "abandoned";
   /** userId per game seat. */
   readonly users: readonly string[];
+  /** The name per game seat, as the room showed it. */
+  readonly nicknames: readonly string[];
   readonly result: MatchResult | null;
   readonly actions: readonly { readonly seat: number; readonly by: "player" | "server" }[];
 };
@@ -92,6 +94,7 @@ export function createDbStore(db: Db): RoomStore {
             // Development identities ("dev-…") have no account row.
             userId: known.has(userId) ? userId : null,
             seat,
+            nickname: match.nicknames[seat] ?? null,
             result: outcomes[seat]?.result ?? null,
             placement: outcomes[seat]?.placement ?? null,
             winShare: outcomes[seat]?.winShare ?? 0,

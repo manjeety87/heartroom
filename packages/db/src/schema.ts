@@ -151,6 +151,8 @@ export const matchPlayers = pgTable(
      */
     userId: text("user_id").references(() => user.id, { onDelete: "restrict" }),
     seat: integer("seat").notNull(),
+    /** The name this person played under in that room, so history can name everyone. */
+    nickname: text("nickname"),
     result: text("result", { enum: ["win", "loss", "draw"] }),
     placement: integer("placement"),
     /** 1/k for a win shared by k players, 1 for a sole win, 0 otherwise. */
