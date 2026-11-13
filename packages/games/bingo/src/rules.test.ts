@@ -234,6 +234,7 @@ describe("timers", () => {
 });
 
 describe("contract", () => {
+  // Six grid sizes × many perturbed replays: ~4 s alone, and slower when the whole suite runs at once.
   it("never shows a grid to anyone but its owner before the end", () => {
     assertNoLeak(bingo, {
       scenarios: [3, 4, 5, 6, 7, 8].map((size, i) => ({
@@ -243,7 +244,7 @@ describe("contract", () => {
       })),
       games: 3,
     });
-  });
+  }, 30_000);
 
   it("when a finished match is replayed from its log, then it reaches the same state", () => {
     const match = { config: { ...CLASSIC, size: 4, linesToWin: 3 }, seats: 3, seed: seedFor(4) };
