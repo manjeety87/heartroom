@@ -176,16 +176,28 @@ export async function enterRoom(
       rememberRoom(joined.roomId, { ...options, resume: parsed.data.checkpoint });
     }
   });
+  // The room counts a hidden tab as away (turn clock, spectators' voice), so it hears every change.
+  const sendPresence = () => {
+    joined.send("presence", {
+      type: "presence",
+      isVisible: document.visibilityState === "visible",
+    });
+  };
+  document.addEventListener("visibilitychange", sendPresence);
+  if (document.visibilityState !== "visible") sendPresence();
+
   joined.onDrop(() => {
     store.setState({ status: "reconnecting" });
   });
   joined.onReconnect(() => {
     store.setState({ status: "live" });
+    sendPresence(); // the server assumes a returning socket is on screen
     // Anything not acknowledged before the drop goes again; the server acks a repeat without replaying it.
     for (const pending of store.getState().outbox)
       joined.send("intent", { type: "intent", ...pending });
   });
   joined.onLeave((code) => {
+    document.removeEventListener("visibilitychange", sendPresence);
     if (room === joined) room = null;
     const reason = closedReasonFor(code, isLeaving);
     const { checkpoint } = store.getState();
