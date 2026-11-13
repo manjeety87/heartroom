@@ -4,3 +4,8 @@ packages:
   - packages/games/*
 minimumReleaseAgeExclude:
   - prettier@3.10.0
+# Install scripts stay off: esbuild (via tsx) gets its binary from an optional dependency, and
+# msgpackr-extract (via Colyseus) is an optional native speed-up; msgpackr falls back to pure JS.
+allowBuilds:
+  esbuild: false
+  msgpackr-extract: false
