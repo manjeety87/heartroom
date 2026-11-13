@@ -2,8 +2,8 @@
 
 _Update this file at the end of every working session (any agent, any device)._
 
-**Last updated:** 2026-11-12 (#22)
-**Phase:** Phase 1 done (owner checked on a phone) + UI redesign + Q2 spike done → Phase 2a in progress (#15–#18, #22, #23 done; next #19 checkpoints).
+**Last updated:** 2026-11-13 (#19)
+**Phase:** Phase 1 done (owner checked on a phone) + UI redesign + Q2 spike done → Phase 2a in progress (#15–#19, #22, #23 done; next #20/#21 match persistence).
 
 ## Done
 
@@ -62,19 +62,33 @@ _Update this file at the end of every working session (any agent, any device)._
       `user.age_confirmed_at` (migration 0001). Played for real in the browser against a scripted second
       player: create → join → 4×4 game → shared win → refresh rejoined → rematch → leave; wrong code shows
       its message; lobby checked at 375 px. 287 tests.
+- [x] **Phase 2a #19 crash recovery** (2026-11-13): `apps/server/src/checkpoint.ts` seals the whole room
+      (AES-256-GCM, `CHECKPOINT_KEY`, previous key for rotation, 15 min expiry) after every change and
+      every 5 min; the game is kept as config + seed + actions and replayed on restore. Shutdown closes
+      with `RESTARTING`; browsers wait 2–5 s and rejoin with `resume` (join option): the room is rebuilt
+      under the same code from the newest checkpoint of its seated players (5 s window), a game comes
+      back only with 2 of its players, else the lobby. Tested with a real server killed mid-game and a
+      new process (same views, older copy can't roll back). Browser: "Bringing your game back…" screen,
+      checkpoint kept in sessionStorage (a refresh after a restart works too). 305 tests.
 
 ## Next
 
-1. **Owner check of online rooms** on two phones (or a phone + laptop, different browsers so they are
+1. **Owner check of a server restart** (not tried in a browser yet): in a game between two browsers,
+   press Ctrl+C in the game-server terminal and start it again within a minute. Both screens should
+   show "Bringing your game back…" and return to the same board, calls and turn. With only one
+   browser open, the room comes back to its lobby instead.
+2. **Owner check of online rooms** on two phones (or a phone + laptop, different browsers so they are
    different guests): run `pnpm --filter @heartroom/server dev` and the site on port 3000
    (`build` + `start`), open `/play` on one, create a room, open the link on the other. Check: join with
    18+, lobby, a 5×5 game, results, rematch, refresh mid-game (same seat), turn Wi-Fi off for 10 s
    (reconnecting bar, then back), Leave.
-2. **Owner check of the rest of the redesign** on a phone (Start game already confirmed): Settings (name, colour, every theme in light and dark,
+3. **Owner check of the rest of the redesign** on a phone (Start game already confirmed): Settings (name, colour, every theme in light and dark,
    Make your own, text size), a game at 5×5 and 8×8 (two-tap call), results, History step-through,
    sounds and vibration. Same commands as before (`build`, then `start`, open `/play/bingo`).
-3. **Phase 2a**, next steps in order:
-   - **#19 checkpoints**, then #20/#21 match persistence + DB (Neon project still to create: Q5).
+4. **Phase 2a**, next steps in order:
+   - **#20/#21 match persistence + DB** (Neon project still to create: Q5). Then add the two restore
+     refusals that need the DB: a checkpoint whose `matchId` is already in `matches`, and a room with a
+     `closed` event (design doc › Restoring safely, rule 1).
    - Room UI gaps: no countdown yet, so the host can only pick Chill (needs the deadline in the `game`
      message + clock offset); the room message doesn't carry the config, so after a refresh the host's
      grid picker shows Classic even if Quick is set; views aren't zod-checked (no `viewSchema` on the
@@ -86,7 +100,7 @@ _Update this file at the end of every working session (any agent, any device)._
    The room must honour
    `Deadline.key` / `onlyWhenAway`, give each joiner a free player colour, and keep names unique
    per room (`docs/design/ui-system.md` › Names, Player colours).
-4. Still open: Q1 (pricing), Q3 (name check), Q4 (iOS voice), Q5 (server host).
+5. Still open: Q1 (pricing), Q3 (name check), Q4 (iOS voice), Q5 (server host).
 
 ## Phases
 

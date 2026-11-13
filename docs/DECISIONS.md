@@ -70,3 +70,7 @@ Append-only. One line per decision: date, the decision, and the reason. Details 
 | 2026-11-12 | Refresh rejoins with `joinById` as the same user (sessionStorage), not the SDK reconnection token | The server already gives a returning user their seat; one code path for refresh and second tab |
 | 2026-11-12 | Nickname filter lives in `nicknameInput` (protocol): whole-word list + a few long stems, look-alikes mapped | One rule for the form, Settings, vs Computer and the room server; avoids the Scunthorpe problem |
 | 2026-11-12 | 18+ is stored on the user (`ageConfirmedAt`, Better Auth additional field), asked at the first create/join | Asked once per account, not per device |
+| 2026-11-13 | Checkpoints keep the game as config + seed + actions and restore by replaying them | Smaller, and a checkpoint can't carry a state the rules wouldn't produce; module version must match |
+| 2026-11-13 | Resume = the `resume` join option (joinById, else create with the code, else join) instead of a socket message | After a restart there is no room to send a message to; the first resumer recreates it under the same code |
+| 2026-11-13 | Checkpoints are ordered by a room-wide change counter, not the game seq | The game seq restarts each game, so an old game's results would outrank a new game |
+| 2026-11-13 | Development uses a fixed public `CHECKPOINT_KEY`; production requires one | A restarted dev server can open the checkpoints browsers hold; nothing real is protected locally |
