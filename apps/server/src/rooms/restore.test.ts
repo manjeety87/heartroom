@@ -53,6 +53,7 @@ async function startServer(bootId: string): Promise<Server> {
           store,
           bootId,
           voice: createVoice(null, createLogger("silent")),
+          isVoiceResting: () => false,
         }),
       ),
     },

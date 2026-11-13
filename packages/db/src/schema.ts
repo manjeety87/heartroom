@@ -178,3 +178,24 @@ export const roomEvents = pgTable(
   },
   (table) => [index("room_events_room_id_type_idx").on(table.roomId, table.type)],
 );
+
+/**
+ * One voice session per LiveKit join (webhooks: participant_joined → participant_left). Minutes are
+ * filled on leave; a session left open by a crash is closed at joined_at + 3 h on the next boot.
+ */
+export const voiceUsage = pgTable(
+  "voice_usage",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    roomId: uuid("room_id").notNull(),
+    /** The LiveKit identity: the user id (a guest, an account, or a dev id). */
+    userId: text("user_id").notNull(),
+    joinedAt: timestamp("joined_at", { withTimezone: true }).notNull(),
+    leftAt: timestamp("left_at", { withTimezone: true }),
+    minutes: numeric("minutes", { precision: 10, scale: 3, mode: "number" }),
+  },
+  (table) => [
+    index("voice_usage_joined_at_idx").on(table.joinedAt),
+    index("voice_usage_room_id_user_id_idx").on(table.roomId, table.userId),
+  ],
+);

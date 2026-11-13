@@ -59,6 +59,8 @@ const envSchema = z
     LIVEKIT_API_SECRET: optional(z.string().min(1)),
     /** Kill switch: "false" turns voice off without removing the keys. */
     VOICE_ENABLED: optional(z.enum(["true", "false"])).default("true"),
+    /** Voice minutes per calendar month (UTC); past it new voice tokens are refused. Unset = no cap. */
+    VOICE_MONTHLY_CAP_MINUTES: optional(z.coerce.number().int().positive()),
     LOG_LEVEL: optional(z.enum(["fatal", "error", "warn", "info", "debug", "trace"])).default(
       "info",
     ),

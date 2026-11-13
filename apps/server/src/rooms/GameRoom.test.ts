@@ -28,6 +28,7 @@ const sealer = createSealer({ current: randomBytes(32) });
 
 /** Stands in for LiveKit: tokens spell out their grant, and every permission change is recorded. */
 const voiceCalls: string[] = [];
+let isVoiceResting = false;
 const voice: Voice = {
   isEnabled: true,
   url: "wss://voice.test",
@@ -61,6 +62,7 @@ beforeAll(async () => {
           store,
           bootId: "test-boot",
           voice,
+          isVoiceResting: () => isVoiceResting,
         }),
       ),
     },
@@ -348,6 +350,12 @@ describe("GameRoom", () => {
     host.send({ type: "host", kind: "unblock_mic", target: "dev-v2" });
     await guest.waitFor("room", (r) => JSON.stringify(r["micBlocked"]) === "[]");
     expect(voiceCalls).toContain("allow:dev-v2");
+
+    // Past the month's minutes, voice rests and says so (the game is untouched).
+    isVoiceResting = true;
+    guest.send({ type: "voice_token" });
+    expect(await guest.waitFor("error")).toMatchObject({ code: "VOICE_RESTING" });
+    isVoiceResting = false;
 
     // Removing someone drops them from voice as well.
     host.send({ type: "host", kind: "kick", target: "dev-v2" });

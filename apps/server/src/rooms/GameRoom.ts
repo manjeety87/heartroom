@@ -34,6 +34,7 @@ import { createQueue, type Queue } from "./queue.ts";
 import { createRateLimiter } from "./rate-limit.ts";
 import { GAMES, isGameId } from "./registry.ts";
 import type { Voice } from "../voice/voice.ts";
+import { voiceGuards } from "../voice/webhooks.ts";
 
 export type GameRoomDeps = {
   readonly verifyToken: VerifyToken;
@@ -46,6 +47,8 @@ export type GameRoomDeps = {
   readonly store: RoomStore;
   /** LiveKit tokens and permissions; disabled when voice isn't configured. */
   readonly voice: Voice;
+  /** True once this month's voice minutes reach the cap: new voice tokens are refused. */
+  readonly isVoiceResting: () => boolean;
 };
 
 /** Seconds a dropped player keeps their place (design doc › GameRoom › Reconnect). */
@@ -153,6 +156,7 @@ export function createGameRoom(deps: GameRoomDeps) {
         };
       }
       liveCodes.add(this.roomId);
+      this.registerVoiceGuard();
       this.log = deps.log.child({ roomId: this.roomId });
       if (this.restoring === null) this.saveEvent("created");
       // Even with no moves, a fresh checkpoint every few minutes keeps a quiet room restorable.
@@ -293,6 +297,7 @@ export function createGameRoom(deps: GameRoomDeps) {
 
     override onDispose() {
       liveCodes.delete(this.roomId);
+      voiceGuards.unregister(this.roomUid);
       this.deadlineTimer?.clear();
       // Everyone left: the room is over, so a checkpoint someone still holds must not revive it.
       if (!this.isShuttingDown) this.saveEvent("closed", { reason: "empty" });
@@ -440,7 +445,7 @@ export function createGameRoom(deps: GameRoomDeps) {
 
     /**
      * A short LiveKit token for this person in this room; voice never blocks the game. Every refusal
-     * is VOICE_UNAVAILABLE, so the browser can tell it apart from a refused move.
+     * is VOICE_UNAVAILABLE or VOICE_RESTING, so the browser can tell it from a refused move.
      */
     private async onVoiceToken(client: Client) {
       const member = this.memberOf(client);
@@ -451,6 +456,10 @@ export function createGameRoom(deps: GameRoomDeps) {
         !voiceTokensPerUser.take(member.userId)
       ) {
         this.sendError(client, "VOICE_UNAVAILABLE");
+        return;
+      }
+      if (deps.isVoiceResting()) {
+        this.sendError(client, "VOICE_RESTING");
         return;
       }
       try {
@@ -465,6 +474,17 @@ export function createGameRoom(deps: GameRoomDeps) {
         this.log.warn({ event: "voice_token_failed", err: error }, "voice_token_failed");
         this.sendError(client, "VOICE_UNAVAILABLE");
       }
+    }
+
+    /**
+     * Lets LiveKit webhooks ask this room about someone joining its voice: anyone not in the room
+     * (left, kicked, banned) is removed, and a blocked mic can only listen.
+     */
+    private registerVoiceGuard() {
+      voiceGuards.register(this.roomUid, (identity) => {
+        if (this.bans.has(identity) || !this.members.has(identity)) return "remove";
+        return this.micBlocked.has(identity) ? "listen" : "ok";
+      });
     }
 
     // ── match ─────────────────────────────────────────────────────────────────────────────────
@@ -827,7 +847,9 @@ export function createGameRoom(deps: GameRoomDeps) {
       const { snapshot } = choice;
       // A game already written (finished or abandoned) can't come back: that is the roll-back attack.
       const keepsGame = choice.keepsGame && !facts.isMatchRecorded;
+      voiceGuards.unregister(this.roomUid);
       this.roomUid = snapshot.roomUid;
+      this.registerVoiceGuard();
       if (snapshot.phase === "playing" && snapshot.match !== null && !keepsGame) {
         if (!facts.isMatchRecorded) this.saveAbandoned(snapshot.match);
       }

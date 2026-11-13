@@ -10,7 +10,10 @@ import { parseConfig } from "./config.ts";
 import { createLogger } from "./logger.ts";
 import { isAllowedOrigin } from "./origin.ts";
 import { createGameRoom } from "./rooms/GameRoom.ts";
+import { WebhookReceiver } from "livekit-server-sdk";
+import { createVoiceMeter, createVoiceUsageStore } from "./voice/usage.ts";
 import { createVoice } from "./voice/voice.ts";
+import { createWebhookHandler, webhookEndpoint } from "./voice/webhooks.ts";
 
 const config = (() => {
   try {
@@ -44,10 +47,27 @@ const sealer = createSealer({
 });
 
 // The game never waits on this: rooms write matches and events in the background.
-const store = createDbStore(connectPostgres(config.DATABASE_URL));
+const db = connectPostgres(config.DATABASE_URL);
+const store = createDbStore(db);
 
 const voice = createVoice(config.voice, log);
-log.info({ event: "voice", enabled: voice.isEnabled }, "voice");
+const meter = createVoiceMeter({
+  store: createVoiceUsageStore(db),
+  capMinutes: config.VOICE_MONTHLY_CAP_MINUTES ?? null,
+  log,
+});
+if (voice.isEnabled) await meter.boot();
+log.info({ event: "voice", enabled: voice.isEnabled, monthMinutes: meter.monthMinutes() }, "voice");
+// Only LiveKit calls this, signed with our API secret; without voice there is nothing to receive.
+const onWebhook =
+  config.voice === null
+    ? null
+    : createWebhookHandler({
+        receiver: new WebhookReceiver(config.voice.apiKey, config.voice.apiSecret),
+        voice,
+        meter,
+        log,
+      });
 
 const transport = new WebSocketTransport({
   maxPayload: LIMITS.MESSAGE_BYTES,
@@ -63,11 +83,24 @@ const server = defineServer({
   transport,
   greet: false,
   // One room type for every game; the host picks the game inside the room.
-  rooms: { room: defineRoom(createGameRoom({ verifyToken, log, sealer, bootId, store, voice })) },
+  rooms: {
+    room: defineRoom(
+      createGameRoom({
+        verifyToken,
+        log,
+        sealer,
+        bootId,
+        store,
+        voice,
+        isVoiceResting: () => meter.isResting(),
+      }),
+    ),
+  },
   routes: createRouter({
     healthz: createEndpoint("/healthz", { method: "GET" }, () =>
       Promise.resolve({ ok: true, bootId, rooms: matchMaker.stats.local.roomCount }),
     ),
+    livekitWebhook: webhookEndpoint(onWebhook),
   }),
 });
 

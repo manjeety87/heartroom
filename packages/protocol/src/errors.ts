@@ -20,6 +20,8 @@ export const ERROR_CODES = {
   ROOM_RESTORING: "ROOM_RESTORING",
   /** Voice is switched off, not configured, or LiveKit couldn't be reached. The game goes on. */
   VOICE_UNAVAILABLE: "VOICE_UNAVAILABLE",
+  /** This month's voice minutes are used up (VOICE_MONTHLY_CAP_MINUTES). The game goes on. */
+  VOICE_RESTING: "VOICE_RESTING",
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
@@ -41,6 +43,7 @@ export const ERROR_MESSAGES: Readonly<Record<ErrorCode, string>> = {
   NOT_AVAILABLE_YET: "That isn’t available yet.",
   ROOM_RESTORING: "This room is coming back after a restart. Try again in a few seconds.",
   VOICE_UNAVAILABLE: "Voice isn’t available right now. The game still works.",
+  VOICE_RESTING: "Voice is resting this month. The game still works.",
 };
 
 /**
