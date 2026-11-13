@@ -6,9 +6,9 @@ import type { ReactNode } from "react";
 import { useFollowSystemMode } from "@/lib/look";
 
 const NAV = [
-  { href: "/play/bingo", label: "Play" },
-  { href: "/history", label: "History" },
-  { href: "/settings", label: "Settings" },
+  { href: "/play", label: "Play", alsoFor: ["/r/"] },
+  { href: "/history", label: "History", alsoFor: [] },
+  { href: "/settings", label: "Settings", alsoFor: [] },
 ] as const;
 
 /**
@@ -29,8 +29,8 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
           >
             Heartroom
           </Link>
-          {NAV.map(({ href, label }) => {
-            const isHere = pathname.startsWith(href);
+          {NAV.map(({ href, label, alsoFor }) => {
+            const isHere = [href, ...alsoFor].some((prefix) => pathname.startsWith(prefix));
             return (
               <Link
                 key={href}

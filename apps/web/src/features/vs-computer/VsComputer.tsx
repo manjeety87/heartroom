@@ -23,7 +23,7 @@ import {
   startLocalMatch,
   type LocalMatch,
 } from "./local-match.ts";
-import { useBingoFeedback } from "./use-bingo-feedback.ts";
+import { useBingoFeedback } from "@/lib/use-bingo-feedback";
 
 /** A short pause before the computer calls, so its move reads as a turn rather than a flicker. */
 const BOT_DELAY_MS = 800;

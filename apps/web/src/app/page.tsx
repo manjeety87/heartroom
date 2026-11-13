@@ -7,12 +7,17 @@ export default function LandingPage() {
       <p className="text-title text-pencil">Your notebook Bingo, now with voice.</p>
       <div className="flex flex-col gap-3">
         <Link
-          href="/play/bingo"
+          href="/play"
           className="inline-flex min-h-11 items-center justify-center self-start rounded-pill bg-pen px-6 text-body font-semibold text-on-pen focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pen"
+        >
+          Play with friends
+        </Link>
+        <Link
+          href="/play/bingo"
+          className="inline-flex min-h-11 items-center justify-center self-start rounded-pill bg-well px-6 text-body font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pen"
         >
           Play vs Computer
         </Link>
-        <p className="text-small text-pencil">Rooms with friends are coming soon.</p>
       </div>
     </main>
   );

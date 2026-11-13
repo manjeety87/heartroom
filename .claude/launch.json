@@ -12,6 +12,15 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@heartroom/web", "exec", "next", "start", "--port", "3100"],
       "port": 3100
+    },
+    {
+      "name": "server",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@heartroom/server", "exec", "tsx", "src/index.ts"],
+      "port": 2567,
+      "env": {
+        "AUTH_JWKS_URL": "http://localhost:3100/api/auth/jwks"
+      }
     }
   ]
 }

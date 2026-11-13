@@ -9,7 +9,7 @@ import {
   startLocalMatch,
   type LocalMatch,
 } from "../vs-computer/local-match.ts";
-import { feedbackFor } from "../vs-computer/use-bingo-feedback.ts";
+import { feedbackFor } from "../../lib/use-bingo-feedback.ts";
 import {
   callCount,
   deleteGame,
