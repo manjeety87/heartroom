@@ -11,9 +11,11 @@
   },
   "dependencies": {
     "@heartroom/bingo": "workspace:*",
+    "@heartroom/db": "workspace:*",
     "@heartroom/engine": "workspace:*",
     "@heartroom/protocol": "workspace:*",
     "@heartroom/ui": "workspace:*",
+    "better-auth": "^1.7.21",
     "next": "16.4.6",
     "react": "19.3.1",
     "react-dom": "19.3.1",

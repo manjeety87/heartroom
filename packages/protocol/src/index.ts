@@ -36,3 +36,4 @@ export {
 } from "./messages.ts";
 export { SEAT_COLOR_IDS, type SeatColorId } from "./seat-colors.ts";
 export { ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH, roomCodeInput } from "./room-code.ts";
+export { GAME_JWT } from "./auth.ts";
