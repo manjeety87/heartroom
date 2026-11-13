@@ -2,7 +2,7 @@
 
 _Update this file at the end of every working session (any agent, any device)._
 
-**Last updated:** 2026-11-13 (#20/#21)
+**Last updated:** 2026-11-13 (turn clock)
 **Phase:** Phase 1 done (owner checked on a phone) + UI redesign + Q2 spike done → Phase 2a in progress (#15–#23 done; Phase 2 left: owner checks on phones, then Phase 3 voice).
 
 ## Done
@@ -79,6 +79,13 @@ _Update this file at the end of every working session (any agent, any device)._
       already written; a game lost because only one player came back is recorded as abandoned.
       Development runs a local Postgres (`packages/db/src/dev-server.ts`, PGlite on :5433) shared by the
       site and the server; tests use an in-memory Postgres (`@heartroom/db/testing`). 322 tests.
+- [x] **Room gaps closed** (2026-11-13): the server sends a `deadline` message (seat, key, `msLeft`,
+      `totalMs`) whenever a clock starts, stops or pauses; the room shows it over the board
+      (`features/room/TurnClock.tsx`: "Your call: 0:12", red under 5 s, a shrinking bar that is one CSS
+      animation). The host can now pick the turn clock (Fast / Chill / Away only). The room message
+      carries `gameConfig`, so the host's picker survives a refresh and other players see the settings.
+      Checked in the browser: setup clock, server auto-fill and auto-call when time ran out, turn clock.
+      323 tests.
 
 ## Next
 
@@ -99,12 +106,10 @@ _Update this file at the end of every working session (any agent, any device)._
      `DATABASE_URL`/`DATABASE_URL_DIRECT`, run `pnpm db:migrate`. Not built yet: the daily job that
      clears `matches.actions` after 30 days, "no human for 3 turns → abandoned", and the
      "unranked if auto-played" rule only counts the server's moves per seat.
-   - Room UI gaps: no countdown yet, so the host can only pick Chill (needs the deadline in the `game`
-     message + clock offset); the room message doesn't carry the config, so after a refresh the host's
-     grid picker shows Classic even if Quick is set; views aren't zod-checked (no `viewSchema` on the
-     module yet); no knocks UI, no "new code", no voice (Phase 3).
+   - Room gaps left: views aren't zod-checked (no `viewSchema` on the module yet); no custom grid size
+     in the room (presets only).
    - Not built yet in the room (answer `NOT_AVAILABLE_YET`): knocks (late joiners are spectators
-     for now), new code, mute/block mic (Phase 3), resume (#19), rematch_ready. "Away" means
+     for now), new code, mute/block mic (Phase 3), rematch_ready. "Away" means
      disconnected; a hidden tab doesn't count yet (needs a client presence message). Unknown codes
      aren't rate-limited (Colyseus answers before `onAuth`): limit the matchmake route before launch. Run the server (any shell, no env needed in development): `pnpm --filter @heartroom/server dev`.
    The room must honour
@@ -118,7 +123,7 @@ _Update this file at the end of every working session (any agent, any device)._
 |---|---|---|
 | 0 | Workspace, engine, protocol, UI tokens | done 2026-11-11 |
 | 1 | Bingo rules + vs Computer (offline) | done 2026-11-11 (+ UI redesign) |
-| 2 | Rooms (Colyseus) + online Bingo + crash recovery | not started |
+| 2 | Rooms (Colyseus) + online Bingo + crash recovery | code done 2026-11-13; owner phone checks pending |
 | 3 | Voice (LiveKit) + host powers | not started |
 | 4 | Google login + history | not started |
 | 5 | Word Guess | not started |
