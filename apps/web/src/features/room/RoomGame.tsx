@@ -8,6 +8,7 @@ import { seatColorVar } from "@heartroom/ui";
 import { useProfile } from "@/lib/profile";
 import { sendHost, sendIntent, useRoom } from "@/lib/room-client/client";
 import { useBingoFeedback } from "@/lib/use-bingo-feedback";
+import { TurnClock } from "./TurnClock.tsx";
 
 /** Copy for refusals of a move; anything else uses the protocol's safe text. */
 const MOVE_REFUSALS: Partial<Record<keyof typeof ERROR_MESSAGES, string>> = {
@@ -26,6 +27,7 @@ export function RoomGame({ room, me }: { readonly room: RoomMessage; readonly me
   const view = useRoom((s) => s.game?.view ?? null) as BingoView | null;
   const notice = useRoom((s) => s.notice);
   const isLive = useRoom((s) => s.status === "live");
+  const clock = useRoom((s) => s.deadline);
   const isHost = room.hostId === me;
 
   const players: readonly Player[] = useMemo(
@@ -58,19 +60,25 @@ export function RoomGame({ room, me }: { readonly room: RoomMessage; readonly me
           ? `Waiting for ${host} to start the next game.`
           : undefined;
 
+  const names = (room.matchPlayers ?? []).map((p) => p.nickname);
   return (
-    <BingoGame
-      view={view}
-      players={players}
-      onIntent={(action: BingoAction) => {
-        sendIntent(action);
-      }}
-      {...(status === undefined ? {} : { status })}
-      {...(isHost && {
-        onRematch: () => {
-          sendHost({ type: "host", kind: "start" });
-        },
-      })}
-    />
+    <div className="flex flex-col gap-4">
+      {clock !== null && view.phase !== "done" && (
+        <TurnClock clock={clock} names={names} me={view.kind === "seat" ? view.you : null} />
+      )}
+      <BingoGame
+        view={view}
+        players={players}
+        onIntent={(action: BingoAction) => {
+          sendIntent(action);
+        }}
+        {...(status === undefined ? {} : { status })}
+        {...(isHost && {
+          onRematch: () => {
+            sendHost({ type: "host", kind: "start" });
+          },
+        })}
+      />
+    </div>
   );
 }

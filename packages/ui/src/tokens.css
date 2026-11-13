@@ -96,6 +96,8 @@
   --animate-lift: lift 500ms var(--ease-spring) both;
   /* Reduced motion replaces movement with a short fade. */
   --animate-fade-in: fade-in var(--duration-reduced-fade) linear both;
+  /* Duration is set per clock (time left) with an inline animation-duration. */
+  --animate-turn-clock: turn-clock 1s linear forwards;
 
   @keyframes ink-draw {
     from {
@@ -129,6 +131,16 @@
   @keyframes fade-in {
     from {
       opacity: 0;
+    }
+  }
+
+  /* A turn clock's bar: from the share of time left when it appeared (--from) down to empty. */
+  @keyframes turn-clock {
+    from {
+      transform: scaleX(var(--from, 1));
+    }
+    to {
+      transform: scaleX(0);
     }
   }
 }

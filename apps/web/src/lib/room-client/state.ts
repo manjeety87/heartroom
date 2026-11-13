@@ -53,6 +53,15 @@ export type RoomState = {
   readonly checkpoint: string | null;
   /** Back in after a restart, until the rebuilt room speaks (it waits up to 5 s for everyone). */
   readonly isRestoring: boolean;
+  /** The current turn's clock in this browser's time; `endsAt` null while it is paused. */
+  readonly deadline: TurnClock | null;
+};
+
+export type TurnClock = {
+  readonly seat: number;
+  readonly key: string;
+  readonly endsAt: number | null;
+  readonly totalMs: number;
 };
 
 export const INITIAL_STATE: RoomState = {
@@ -65,9 +74,15 @@ export const INITIAL_STATE: RoomState = {
   closed: null,
   checkpoint: null,
   isRestoring: false,
+  deadline: null,
 };
 
-export function applyServerMessage(state: RoomState, message: ServerMessage): RoomState {
+/** `now` is this browser's clock when the message arrived (a deadline is sent as time left). */
+export function applyServerMessage(
+  state: RoomState,
+  message: ServerMessage,
+  now: number,
+): RoomState {
   switch (message.type) {
     case "room": {
       // A new game restarts `seq` at 0, so the last game's view must not outrank it.
@@ -98,6 +113,21 @@ export function applyServerMessage(state: RoomState, message: ServerMessage): Ro
       };
     case "checkpoint":
       return { ...state, checkpoint: message.checkpoint };
+    case "deadline": {
+      const clock = message.deadline;
+      return {
+        ...state,
+        deadline:
+          clock === null
+            ? null
+            : {
+                seat: clock.seat,
+                key: clock.key,
+                endsAt: clock.msLeft === null ? null : now + clock.msLeft,
+                totalMs: clock.totalMs,
+              },
+      };
+    }
     case "voice_token":
     case "knock":
       return state;

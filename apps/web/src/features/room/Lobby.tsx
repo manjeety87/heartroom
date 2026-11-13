@@ -1,19 +1,53 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PRESETS } from "@heartroom/bingo";
+import {
+  bingoConfigSchema,
+  CLASSIC,
+  PRESETS,
+  TIMER_MODES,
+  type BingoConfig,
+  type TimerMode,
+} from "@heartroom/bingo";
 import type { RoomMessage } from "@heartroom/protocol";
-import { Button, Switch, seatColorVar } from "@heartroom/ui";
+import { Button, SegmentedControl, Switch, seatColorVar } from "@heartroom/ui";
 import { sendHost } from "@/lib/room-client/client";
 
-export type PresetId = keyof typeof PRESETS;
+type PresetId = keyof typeof PRESETS;
 const PRESET_IDS = Object.keys(PRESETS) as PresetId[];
 const MIN_PLAYERS = 2;
 
-function configFor(preset: PresetId) {
-  const { size, linesToWin } = PRESETS[preset];
-  // Chill until the screen can show a countdown; the room rotates who calls first by itself.
-  return { size, linesToWin, timer: "chill", firstSeat: 0 } as const;
+const TIMERS: Readonly<Record<TimerMode, { label: string; hint: string }>> = {
+  fast: { label: "Fast", hint: "15 seconds for each call." },
+  chill: { label: "Chill", hint: "No clock. Nudge a slow caller to give them 30 seconds." },
+  "away-only": { label: "Away only", hint: "The clock runs only when a player drops off." },
+};
+const TIMER_OPTIONS = TIMER_MODES.map((value) => ({ value, label: TIMERS[value].label }));
+
+/** The room's chosen settings, read from the server, so every screen and a refresh agree. */
+function currentConfig(room: RoomMessage): BingoConfig | null {
+  const parsed = bingoConfigSchema.safeParse(room.gameConfig);
+  return parsed.success ? parsed.data : null;
+}
+
+const presetOf = (config: BingoConfig): PresetId | null =>
+  PRESET_IDS.find(
+    (id) => PRESETS[id].size === config.size && PRESETS[id].linesToWin === config.linesToWin,
+  ) ?? null;
+
+/** "Classic 5×5 · Fast", for everyone who isn't choosing. */
+export function describeConfig(config: BingoConfig): string {
+  const preset = presetOf(config);
+  const grid =
+    preset === null
+      ? `${String(config.size)}×${String(config.size)}, ${String(config.linesToWin)} lines`
+      : PRESETS[preset].label;
+  return `${grid} · ${TIMERS[config.timer].label}`;
+}
+
+function sendConfig(config: BingoConfig) {
+  // The room rotates who calls first between games, so firstSeat always starts at 0.
+  sendHost({ type: "host", kind: "config", gameId: "bingo", config: { ...config, firstSeat: 0 } });
 }
 
 /** Who's here and, for the host, the game, the lock and Start. Also sets up the next game. */
@@ -21,103 +55,117 @@ export function Lobby({
   room,
   me,
   isBetweenGames,
-  preset,
-  onPresetChange,
 }: {
   readonly room: RoomMessage;
   readonly me: string;
   /** After a game: the results' Rematch starts it, so this panel only sets up the next one. */
   readonly isBetweenGames: boolean;
-  /** Held by the room screen, so it survives the game in between (this panel unmounts). */
-  readonly preset: PresetId;
-  readonly onPresetChange: (preset: PresetId) => void;
 }) {
   const isHost = room.hostId === me;
   const present = room.seats.filter((s) => s.isConnected).length;
   const host = [...room.seats, ...room.spectators].find((p) => p.userId === room.hostId);
+  const config = currentConfig(room);
 
-  // A new room has no game chosen; the host's screen sends its choice straight away.
+  // A new room has no game chosen; the host's screen picks Classic straight away.
   useEffect(() => {
-    if (isHost && room.gameId === null) {
-      sendHost({ type: "host", kind: "config", gameId: "bingo", config: configFor(preset) });
-    }
-  }, [isHost, room.gameId, preset]);
+    if (isHost && room.gameId === null) sendConfig(CLASSIC);
+  }, [isHost, room.gameId]);
 
+  if (!isHost) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PlayerList room={room} me={me} isHost={false} />
+        <div aria-live="polite" className="flex flex-col gap-1">
+          {config !== null && (
+            <p className="text-body font-semibold text-ink">{describeConfig(config)}</p>
+          )}
+          <p className="text-body text-pencil">
+            Waiting for {host?.nickname ?? "the host"} to start the {isBetweenGames ? "next " : ""}
+            game…
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const chosen = config === null ? null : presetOf(config);
   return (
     <div className="flex flex-col gap-6">
-      <PlayerList room={room} me={me} isHost={isHost} />
-
-      {isHost ? (
-        <section aria-labelledby="game-settings" className="flex flex-col gap-4">
-          <h2
-            id="game-settings"
-            className="font-display text-title font-bold tracking-tight text-ink"
-          >
-            {isBetweenGames ? "Next game" : "Bingo"}
-          </h2>
-          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Grid">
-            {PRESET_IDS.map((id) => {
-              const isChecked = preset === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  role="radio"
-                  aria-checked={isChecked}
-                  onClick={() => {
-                    onPresetChange(id);
-                    sendHost({
-                      type: "host",
-                      kind: "config",
-                      gameId: "bingo",
-                      config: configFor(id),
-                    });
-                  }}
-                  className={`flex min-h-16 flex-col items-start justify-center gap-0.5 rounded-card px-3 py-2 text-left ring-2 transition-[box-shadow,background-color,transform] duration-(--duration-press) ease-out active:scale-97 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pen motion-reduce:active:scale-100 ${
-                    isChecked ? "bg-sheet shadow-float ring-pen" : "bg-well ring-transparent"
-                  }`}
-                >
-                  <span className="text-body font-semibold text-ink">{PRESETS[id].label}</span>
-                  <span className="text-caption text-pencil">
-                    {PRESETS[id].linesToWin} lines to win
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          <Switch
-            label="Lock the room"
-            description="Nobody new can join. People already here can still come back."
-            checked={room.isLocked}
-            onChange={(isLocked) => {
-              sendHost({ type: "host", kind: isLocked ? "lock" : "unlock" });
-            }}
-          />
-          {!isBetweenGames && (
-            <>
-              <Button
-                disabled={present < MIN_PLAYERS}
-                className="self-stretch sm:self-start"
+      <PlayerList room={room} me={me} isHost />
+      <section aria-labelledby="game-settings" className="flex flex-col gap-4">
+        <h2
+          id="game-settings"
+          className="font-display text-title font-bold tracking-tight text-ink"
+        >
+          {isBetweenGames ? "Next game" : "Bingo"}
+        </h2>
+        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Grid">
+          {PRESET_IDS.map((id) => {
+            const isChecked = chosen === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={isChecked}
+                disabled={config === null}
                 onClick={() => {
-                  sendHost({ type: "host", kind: "start" });
+                  if (config === null) return;
+                  const { size, linesToWin } = PRESETS[id];
+                  sendConfig({ ...config, size, linesToWin });
                 }}
+                className={`flex min-h-16 flex-col items-start justify-center gap-0.5 rounded-card px-3 py-2 text-left ring-2 transition-[box-shadow,background-color,transform] duration-(--duration-press) ease-out active:scale-97 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pen motion-reduce:active:scale-100 ${
+                  isChecked ? "bg-sheet shadow-float ring-pen" : "bg-well ring-transparent"
+                }`}
               >
-                Start game
-              </Button>
-              {present < MIN_PLAYERS && (
-                <p className="text-small text-pencil">
-                  Bingo needs at least {MIN_PLAYERS} players. Invite someone with the code above.
-                </p>
-              )}
-            </>
-          )}
-        </section>
-      ) : (
-        <p aria-live="polite" className="text-body text-pencil">
-          Waiting for {host?.nickname ?? "the host"} to start the {isBetweenGames ? "next " : ""}
-          game…
-        </p>
-      )}
+                <span className="text-body font-semibold text-ink">{PRESETS[id].label}</span>
+                <span className="text-caption text-pencil">
+                  {PRESETS[id].linesToWin} lines to win
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {config !== null && (
+          <div className="flex flex-col gap-2">
+            <SegmentedControl
+              label="Turn clock"
+              options={TIMER_OPTIONS}
+              value={config.timer}
+              onChange={(timer) => {
+                sendConfig({ ...config, timer });
+              }}
+            />
+            <p className="text-small text-pencil">{TIMERS[config.timer].hint}</p>
+          </div>
+        )}
+        <Switch
+          label="Lock the room"
+          description="Nobody new can join. People already here can still come back."
+          checked={room.isLocked}
+          onChange={(isLocked) => {
+            sendHost({ type: "host", kind: isLocked ? "lock" : "unlock" });
+          }}
+        />
+        {!isBetweenGames && (
+          <>
+            <Button
+              disabled={present < MIN_PLAYERS || config === null}
+              className="self-stretch sm:self-start"
+              onClick={() => {
+                sendHost({ type: "host", kind: "start" });
+              }}
+            >
+              Start game
+            </Button>
+            {present < MIN_PLAYERS && (
+              <p className="text-small text-pencil">
+                Bingo needs at least {MIN_PLAYERS} players. Invite someone with the code above.
+              </p>
+            )}
+          </>
+        )}
+      </section>
     </div>
   );
 }

@@ -157,7 +157,7 @@ export async function enterRoom(
   joined.onMessage("*", (_type, payload: unknown) => {
     const parsed = serverMessage.safeParse(payload);
     if (!parsed.success) return; // Dropped: an older or newer server speaking another shape.
-    store.setState((state) => applyServerMessage(state, parsed.data));
+    store.setState((state) => applyServerMessage(state, parsed.data, Date.now()));
     if (parsed.data.type === "checkpoint") {
       rememberRoom(joined.roomId, { ...options, resume: parsed.data.checkpoint });
     }

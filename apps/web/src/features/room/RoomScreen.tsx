@@ -7,7 +7,7 @@ import { Button } from "@heartroom/ui";
 import { useProfile } from "@/lib/profile";
 import { enterRoom, lastRoomFor, leaveRoom, useRoom } from "@/lib/room-client/client";
 import { CLOSED_COPY, joinFailureCopy } from "./copy.ts";
-import { Lobby, type PresetId } from "./Lobby.tsx";
+import { Lobby } from "./Lobby.tsx";
 import { NameStep } from "./NameStep.tsx";
 import { RoomGame } from "./RoomGame.tsx";
 import { ShareRoom } from "./ShareRoom.tsx";
@@ -27,7 +27,6 @@ export function RoomScreen({ code }: { readonly code: string }) {
   const isRestoring = useRoom((s) => s.isRestoring);
   const profile = useProfile();
   const [rejoinError, setRejoinError] = useState<string | null>(null);
-  const [preset, setPreset] = useState<PresetId>("classic");
   const triedRejoin = useRef(false);
   // Whether this tab was already in this room (a refresh); unknown (null) while rendering on the server.
   const wasHere = useSyncExternalStore(
@@ -117,15 +116,7 @@ export function RoomScreen({ code }: { readonly code: string }) {
       )}
       {!isGameOn && <ShareRoom code={room.code} />}
       {(isGameOn || isResults) && <RoomGame room={room} me={me} />}
-      {!isGameOn && (
-        <Lobby
-          room={room}
-          me={me}
-          isBetweenGames={isResults}
-          preset={preset}
-          onPresetChange={setPreset}
-        />
-      )}
+      {!isGameOn && <Lobby room={room} me={me} isBetweenGames={isResults} />}
       <LeaveButton isMidGame={isGameOn} />
     </div>
   );
