@@ -10,6 +10,9 @@
   "scripts": {
     "typecheck": "tsc -p ."
   },
+  "dependencies": {
+    "@heartroom/protocol": "workspace:*"
+  },
   "peerDependencies": {
     "react": "^19.2.0"
   },

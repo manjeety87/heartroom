@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ERROR_CODES } from "./errors.ts";
+import { SEAT_COLOR_IDS } from "./seat-colors.ts";
 
 /**
  * Every message between browser and game server. Each one is `safeParse`d on arrival; invalid
@@ -111,6 +112,8 @@ const seatInfo = z.strictObject({
   userId: id.nullable(),
   nickname: nickname.nullable(),
   isConnected: z.boolean(),
+  /** Unique within the room; absent for an empty seat. */
+  color: z.enum(SEAT_COLOR_IDS).optional(),
 });
 
 /** Public room facts, sent in full on every change. Never game state. */

@@ -1,3 +1,4 @@
+import { SEAT_COLOR_IDS } from "@heartroom/protocol";
 import { describe, expect, it } from "vitest";
 import { contrast, ensureContrast, mix, readableOn } from "./color.ts";
 import {
@@ -156,5 +157,11 @@ describe("theme css", () => {
     });
     expect(bad.attributes["data-theme"]).toBe("notebook");
     expect(bad.styles).toEqual({});
+  });
+});
+
+describe("SEAT_COLORS", () => {
+  it("lists the server's colour ids in the server's order (the room hands out the next free one)", () => {
+    expect(SEAT_COLORS.map((c) => c.id)).toEqual([...SEAT_COLOR_IDS]);
   });
 });

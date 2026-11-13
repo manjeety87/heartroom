@@ -1,3 +1,4 @@
+import type { SeatColorId } from "@heartroom/protocol";
 import { mix, readableOn } from "./color.ts";
 
 /**
@@ -251,9 +252,14 @@ export const SEAT_COLORS = [
   { id: "amber", label: "Amber", light: "#955700", dark: "#f2b451" },
   { id: "violet", label: "Violet", light: "#8a3fc4", dark: "#c99dff" },
   { id: "green", label: "Green", light: "#2c7a30", dark: "#7bd88a" },
-] as const;
+] as const satisfies readonly {
+  readonly id: SeatColorId;
+  readonly label: string;
+  readonly light: string;
+  readonly dark: string;
+}[];
 
-export type SeatColorId = (typeof SEAT_COLORS)[number]["id"];
+export type { SeatColorId };
 
 /** The CSS colour for a seat colour: follows light/dark through the `--color-seat-*` tokens. */
 export const seatColorVar = (id: SeatColorId): string => `var(--color-seat-${id})`;
