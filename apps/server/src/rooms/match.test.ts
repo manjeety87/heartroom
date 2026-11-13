@@ -61,4 +61,33 @@ describe("prepareMatch", () => {
     expect(match.isStale(4)).toBe(true);
     expect(match.isStale(99)).toBe(true);
   });
+
+  it("when a match is restored from its record, then every view is the same as before", () => {
+    const setup = prepareMatch(bingo, CLASSIC)!;
+    const match = setup.start(2, newSeed());
+    match.play(0, { type: "fill", grid: grid(1) });
+    for (let i = 0; i < 6; i++) match.autoPlay(match.deadline()!.seat);
+    const { seed, actions } = match.record();
+    // Through JSON, as a checkpoint carries it.
+    const restored = setup.restore(2, seed, JSON.parse(JSON.stringify(actions)) as typeof actions)!;
+    expect(restored.turnSeq()).toBe(match.turnSeq());
+    for (const viewer of [
+      { kind: "seat", seat: 0 },
+      { kind: "seat", seat: 1 },
+      { kind: "spectator" },
+    ] as const) {
+      expect(JSON.stringify(restored.view(viewer))).toBe(JSON.stringify(match.view(viewer)));
+    }
+    expect(restored.isStale(match.turnSeq())).toBe(false);
+  });
+
+  it("when a record holds a move the rules refuse, then nothing is restored", () => {
+    const setup = prepareMatch(bingo, CLASSIC)!;
+    const bad = [{ seat: 0, action: { type: "call", n: 1 }, by: "player" as const }];
+    expect(setup.restore(2, newSeed(), bad)).toBeNull();
+    expect(
+      setup.restore(2, newSeed(), [{ seat: 0, action: { type: "dance" }, by: "player" }]),
+    ).toBeNull();
+    expect(setup.restore(9, newSeed(), [])).toBeNull();
+  });
 });

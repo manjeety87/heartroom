@@ -38,13 +38,23 @@ export type Match = {
   view(viewer: Viewer): Json;
   deadline(): Deadline | null;
   result(): MatchResult | null;
+  /** What a checkpoint keeps: the game is rebuilt from these by replaying them (`restore`). */
+  record(): { readonly seed: Uint8Array; readonly actions: readonly LogEntry<unknown>[] };
 };
 
 export type MatchSetup = {
   readonly gameId: string;
+  readonly moduleVersion: number;
+  /** The parsed config, as a checkpoint stores it. */
+  readonly config: unknown;
   readonly players: { readonly min: number; readonly max: number };
   /** Throws a RangeError when the config doesn't fit `seats` (e.g. a first seat that isn't there). */
   start(seats: number, seed: Uint8Array): Match;
+  /**
+   * The match a checkpoint describes, replayed action by action through the game's rules. Null when
+   * any action is refused or malformed (a checkpoint from a different rule set), never a half-match.
+   */
+  restore(seats: number, seed: Uint8Array, actions: readonly LogEntry<unknown>[]): Match | null;
 };
 
 /** Parses a host's config for `module`; null when it doesn't match the game's `configSchema`. */
@@ -57,48 +67,70 @@ export function prepareMatch<Config, State, Action, View extends Json>(
   const config = parsed.data;
   return {
     gameId: module.id,
+    moduleVersion: module.version,
+    config,
     players: module.players,
-    start(seats, seed) {
-      let state = startMatch(module, { config, seats, seed });
-      const log: LogEntry<Action>[] = [];
-      /** `turnKeys[seq]` = the deadline key after `seq` actions (null when the game sets none). */
-      const turnKeys: (string | null)[] = [module.nextDeadline(state)?.key ?? null];
-      // Auto-play needs randomness the players can't predict; it never comes from the match seed.
-      const serverRng: Rng = createRng(newSeed());
-
-      const apply = (entry: LogEntry<Action>) => {
-        const outcome = step(module, state, entry);
-        if (!outcome.ok) return { ok: false as const, code: outcome.code };
-        state = outcome.state;
-        log.push(entry);
-        turnKeys.push(module.nextDeadline(state)?.key ?? null);
-        return { ok: true as const };
-      };
-
-      return {
-        gameId: module.id,
-        seats,
-        turnSeq: () => log.length,
-        isStale: (turnSeq) => turnSeq > log.length || turnKeys[turnSeq] !== turnKeys[log.length],
-        play(seat, raw) {
-          const action = module.actionSchema.safeParse(raw);
-          if (!action.success) return { ok: false, code: "INVALID_MESSAGE" };
-          return apply({ seat, action: action.data, by: "player" });
-        },
-        autoPlay(seat) {
-          const outcome = apply({
-            seat,
-            action: module.autoAction(state, seat, serverRng),
-            by: "server",
-          });
-          // autoAction must always be legal; if it isn't, the game module has a bug.
-          if (!outcome.ok)
-            throw new Error(`${module.id}: autoAction was rejected (${outcome.code})`);
-        },
-        view: (viewer) => module.view(state, viewer),
-        deadline: () => module.nextDeadline(state),
-        result: () => module.result(state),
-      };
+    start: (seats, seed) => begin(seats, seed).match,
+    restore(seats, seed, history) {
+      let started: ReturnType<typeof begin>;
+      try {
+        started = begin(seats, seed);
+      } catch (error) {
+        if (error instanceof RangeError) return null;
+        throw error;
+      }
+      for (const entry of history) {
+        const action = module.actionSchema.safeParse(entry.action);
+        if (!action.success || !started.replay({ ...entry, action: action.data })) return null;
+      }
+      return started.match;
     },
   };
+
+  /** A new match, plus `replay` to feed it recorded actions (player or server) for a restore. */
+  function begin(
+    seats: number,
+    seed: Uint8Array,
+  ): { match: Match; replay: (entry: LogEntry<Action>) => boolean } {
+    let state = startMatch(module, { config, seats, seed });
+    const log: LogEntry<Action>[] = [];
+    /** `turnKeys[seq]` = the deadline key after `seq` actions (null when the game sets none). */
+    const turnKeys: (string | null)[] = [module.nextDeadline(state)?.key ?? null];
+    // Auto-play needs randomness the players can't predict; it never comes from the match seed.
+    const serverRng: Rng = createRng(newSeed());
+
+    const apply = (entry: LogEntry<Action>) => {
+      const outcome = step(module, state, entry);
+      if (!outcome.ok) return { ok: false as const, code: outcome.code };
+      state = outcome.state;
+      log.push(entry);
+      turnKeys.push(module.nextDeadline(state)?.key ?? null);
+      return { ok: true as const };
+    };
+    const match: Match = {
+      gameId: module.id,
+      seats,
+      turnSeq: () => log.length,
+      isStale: (turnSeq) => turnSeq > log.length || turnKeys[turnSeq] !== turnKeys[log.length],
+      play(seat, raw) {
+        const action = module.actionSchema.safeParse(raw);
+        if (!action.success) return { ok: false, code: "INVALID_MESSAGE" };
+        return apply({ seat, action: action.data, by: "player" });
+      },
+      autoPlay(seat) {
+        const outcome = apply({
+          seat,
+          action: module.autoAction(state, seat, serverRng),
+          by: "server",
+        });
+        // autoAction must always be legal; if it isn't, the game module has a bug.
+        if (!outcome.ok) throw new Error(`${module.id}: autoAction was rejected (${outcome.code})`);
+      },
+      view: (viewer) => module.view(state, viewer),
+      deadline: () => module.nextDeadline(state),
+      result: () => module.result(state),
+      record: () => ({ seed, actions: log }),
+    };
+    return { match, replay: (entry) => apply(entry).ok };
+  }
 }
