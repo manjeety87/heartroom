@@ -2,8 +2,8 @@
 
 _Update this file at the end of every working session (any agent, any device)._
 
-**Last updated:** 2026-11-13 (turn clock)
-**Phase:** Phase 1 done (owner checked on a phone) + UI redesign + Q2 spike done → Phase 2a in progress (#15–#23 done; Phase 2 left: owner checks on phones, then Phase 3 voice).
+**Last updated:** 2026-11-13 (voice, first slice)
+**Phase:** Phase 2 code done (owner phone checks pending) → **Phase 3 voice in progress** (tokens, block-mic, voice dock done; webhooks + minutes cap next).
 
 ## Done
 
@@ -86,9 +86,27 @@ _Update this file at the end of every working session (any agent, any device)._
       carries `gameConfig`, so the host's picker survives a refresh and other players see the settings.
       Checked in the browser: setup clock, server auto-fill and auto-call when time ran out, turn clock.
       323 tests.
+- [x] **Phase 3, first slice: voice** (2026-11-13): `apps/server/src/voice/voice.ts` mints LiveKit tokens
+      (room = internal room id, identity = user id, 60 s, mic only, no data/metadata/admin, every flag
+      explicit), blocks/allows a mic with `UpdateParticipant`, and removes + revokes on kick or leave.
+      `room.micBlocked` (also in checkpoints). Voice is off until `LIVEKIT_URL`/`_API_KEY`/`_API_SECRET`
+      are set; refusals are `VOICE_UNAVAILABLE`. Web: `lib/voice/client.ts` (only livekit-client code;
+      3-min idle leave, "Tap to hear voice", mic denied / plain-http messages) and
+      `features/voice/VoiceDock.tsx` (sticky dock, chips with speaking ring, host Block mic). Checked in
+      the browser **without** LiveKit keys (dock + "Voice isn't available" message); real audio not
+      tried yet. 329 tests.
 
 ## Next
 
+0. **Voice needs LiveKit keys (owner):** create a free project at cloud.livekit.io, then put
+   `LIVEKIT_URL` (wss://…), `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` in `.env.local` at the repo root
+   (git-ignored) and restart `pnpm dev`. Try on a laptop first (two browsers, `localhost:3000`): Join
+   voice on both, Mic on, talk; host blocks the other's mic (they go silent and see the banner), then
+   allows it. **Phones:** the mic needs https; plain `http://<laptop-ip>` can only listen (the dock says
+   so). Phone mic testing needs an https tunnel or the deployed site.
+   **Phase 3 next slice:** LiveKit webhook route (signature-checked) → `voice_usage` table, month-to-date
+   minutes, `VOICE_MONTHLY_CAP_MINUTES` refusal ("Voice is resting this month"), and ban/block re-checks on
+   `participant_joined`; spectators' voice dropped after 3 min away.
 1. **Owner check of a server restart** (not tried in a browser yet): in a game between two browsers,
    press Ctrl+C in the game-server terminal and start it again within a minute. Both screens should
    show "Bringing your game back…" and return to the same board, calls and turn. With only one
@@ -124,7 +142,7 @@ _Update this file at the end of every working session (any agent, any device)._
 | 0 | Workspace, engine, protocol, UI tokens | done 2026-11-11 |
 | 1 | Bingo rules + vs Computer (offline) | done 2026-11-11 (+ UI redesign) |
 | 2 | Rooms (Colyseus) + online Bingo + crash recovery | code done 2026-11-13; owner phone checks pending |
-| 3 | Voice (LiveKit) + host powers | not started |
+| 3 | Voice (LiveKit) + host powers | in progress: tokens, block-mic, dock done; webhooks/cap next |
 | 4 | Google login + history | not started |
 | 5 | Word Guess | not started |
 | 6 | Leaderboard | not started |
