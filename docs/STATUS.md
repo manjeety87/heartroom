@@ -2,8 +2,8 @@
 
 _Update this file at the end of every working session (any agent, any device)._
 
-**Last updated:** 2026-11-12
-**Phase:** Phase 1 done (owner checked on a phone) + UI redesign + Q2 spike done → Phase 2a in progress (#15–#18 done; next #23 auth, then #22 web room screens).
+**Last updated:** 2026-11-12 (#23)
+**Phase:** Phase 1 done (owner checked on a phone) + UI redesign + Q2 spike done → Phase 2a in progress (#15–#18 + #23 done; next #22 web room screens).
 
 ## Done
 
@@ -46,6 +46,13 @@ _Update this file at the end of every working session (any agent, any device)._
       intents re-acked, per-viewer views, deadlines with away-only clocks and auto-play. Close codes
       moved to 4101+ (Colyseus owns 4000–4010). 273 tests, incl. a real-server game with no grid leak.
       `pnpm --filter @heartroom/server dev` now works in PowerShell with no env set.
+- [x] **Phase 2a #23 Better Auth** (2026-11-12): `packages/db` (Drizzle; Better Auth tables, SQL in
+      `packages/db/drizzle`), `apps/web/src/lib/auth/` (anonymous guests + JWT plugin, no IP/user agent
+      kept) and `/api/auth/[...all]`; `getGameToken()` in `lib/auth/client.ts` signs in a guest if needed
+      and returns a 15-min EdDSA token. The server checks it with jose against `AUTH_JWKS_URL` (alg,
+      `iss`, `aud`, `exp` pinned, 30 s skew); `dev:<id>` still works outside production. Locally the site
+      uses PGlite in `.data/pglite` (no Neon needed). Tried for real: guest sign-in → `/token` → the
+      server's verifier accepted it and refused a tampered one. 278 tests.
 
 ## Next
 
@@ -53,11 +60,11 @@ _Update this file at the end of every working session (any agent, any device)._
    Make your own, text size), a game at 5×5 and 8×8 (two-tap call), results, History step-through,
    sounds and vibration. Same commands as before (`build`, then `start`, open `/play/bingo`).
 2. **Phase 2a**, next steps in order:
-   - **#23 Better Auth** (anonymous guest + JWT, `/api/auth/jwks`) and swap the `dev:<id>` branch in
-     `apps/server/src/auth/verify-token.ts` for a jose JWKS check. Until then the server lets nobody
-     in when `NODE_ENV=production`.
    - **#22 web room screens** (`/r/[code]`, `/room/[id]`, `lib/room-client.ts` with `@colyseus/sdk`
-     0.18.10): send messages as `room.send(msg.type, msg)`, keep `reconnectionToken` and call
+     0.18.10): `client.auth.token = await getGameToken()` before each create/join (and again after an
+     `UNAUTHORIZED` refusal); run the site on port 3000 so the server's default JWKS URL finds it. The
+     18+ checkbox (`ageConfirmedAt`) and nickname profanity/reserved-word filter land with the nickname
+     screen (design doc #23 listed the filter; moved here). Send messages as `room.send(msg.type, msg)`, keep `reconnectionToken` and call
      `reconnect` yourself (SDK auto-reconnect needs 5 s uptime), parse join refusals with `joinError`.
    - Then #19 checkpoints, #20/#21 match persistence + DB.
    - Not built yet in the room (answer `NOT_AVAILABLE_YET`): knocks (late joiners are spectators
@@ -96,4 +103,6 @@ _Update this file at the end of every working session (any agent, any device)._
   only on localhost.
 - UI work: read `docs/design/ui-system.md` first; add themes only in `packages/ui/src/theme/themes.ts`
   (the contrast test guards them).
+- Before a deploy: `pnpm db:migrate` with `DATABASE_URL_DIRECT` set (Neon direct URL). A schema change =
+  edit `packages/db/src/schema.ts`, `pnpm db:generate`, review and commit the SQL.
 - Bot strength tests use 2,000 fixed seeds; if a bot change fails them, the levels moved closer together.

@@ -62,3 +62,6 @@ Append-only. One line per decision: date, the decision, and the reason. Details 
 | 2026-11-12 | An intent is stale only when the game's deadline key changed since the `turnSeq` it quotes | A strict seq check refused every simultaneous setup move (all players fill grids at once) |
 | 2026-11-12 | Room id = room code; one room type `room` for every game; seat 0 rotates each game | Join by code is a plain `joinById`; the game is chosen inside the room |
 | 2026-11-12 | `ALLOWED_ORIGINS` optional outside production (defaults to every origin) | Phones test at `http://<laptop-ip>:3000`; `NAME=value cmd` doesn't work in PowerShell |
+| 2026-11-12 | Game JWT: EdDSA, fixed `iss` `heartroom-web` / `aud` `heartroom-game` (`GAME_JWT` in protocol), 15 min, fetched before every join | The site's address differs on localhost, a LAN IP and a deploy; a URL issuer would break phone tests |
+| 2026-11-12 | `dev:<id>` tokens stay accepted outside production, next to real JWTs | Tests and scripts seat many users without running the site; production still refuses them |
+| 2026-11-12 | Local/dev database = PGlite in `.data/pglite` (auto-migrated) when `DATABASE_URL` is unset; Vercel (`VERCEL=1`) requires `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL` | Any laptop works after `pnpm install` with no Neon account; a deploy can't fall back by mistake |
