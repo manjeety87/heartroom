@@ -16,6 +16,7 @@
     "@heartroom/db": "workspace:*",
     "@heartroom/engine": "workspace:*",
     "@heartroom/protocol": "workspace:*",
+    "@heartroom/word-guess": "workspace:*",
     "drizzle-orm": "^0.45.4",
     "jose": "^6.2.17",
     "livekit-server-sdk": "^2.19.3",

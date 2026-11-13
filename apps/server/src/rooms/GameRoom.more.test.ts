@@ -12,8 +12,8 @@ import type { Voice } from "../voice/voice.ts";
 import { createGameRoom } from "./GameRoom.ts";
 
 /**
- * Presence (is the room tab on screen?) with a real server. Its own file because the join rate limits
- * are per process and GameRoom.test.ts already uses most of a minute's joins.
+ * More of the room with a real server: presence (is the room tab on screen?) and Word Guess. Its own
+ * file because the join rate limits are per process and GameRoom.test.ts uses most of a minute's joins.
  */
 
 const PORT = 2654;
@@ -188,5 +188,76 @@ describe("presence", () => {
     watcher.send({ type: "presence", isVisible: false });
     await until(() => voiceCalls.includes("remove:dev-h3"));
     await Promise.all([host.room.leave(), guest.room.leave(), watcher.room.leave()]);
+  });
+});
+
+describe("word guess in a room", () => {
+  it("plays a whole game; nobody sees the other secret before the end", async () => {
+    const host = await create("w1", "Riya");
+    const code = host.room.roomId;
+    const guest = await join(code, "w2", "Kabir");
+    const raw: string[] = [];
+    for (const p of [host, guest]) {
+      p.room.onMessage("*", (_type, payload: unknown) => {
+        raw.push(JSON.stringify(payload));
+      });
+    }
+
+    host.send({
+      type: "host",
+      kind: "config",
+      gameId: "word-guess",
+      config: { length: 5, maxGuesses: 5 },
+    });
+    await host.waitFor("room", (r) => r["gameId"] === "word-guess");
+    host.send({ type: "host", kind: "start" });
+    await host.waitFor("room", (r) => r["phase"] === "playing");
+
+    // A made-up word is refused; an everyday word is accepted.
+    host.send({
+      type: "intent",
+      clientActionId: "s0",
+      turnSeq: 0,
+      action: { type: "set", word: "qzxyw" },
+    });
+    expect(await host.waitFor("error")).toMatchObject({ code: "RULE_VIOLATION" });
+    host.send({
+      type: "intent",
+      clientActionId: "s1",
+      turnSeq: 0,
+      action: { type: "set", word: "apple" },
+    });
+    await host.waitFor("ack", (a) => a["clientActionId"] === "s1");
+    guest.send({
+      type: "intent",
+      clientActionId: "s2",
+      turnSeq: 1,
+      action: { type: "set", word: "crane" },
+    });
+    await guest.waitFor("ack", (a) => a["clientActionId"] === "s2");
+    expect(
+      raw
+        .filter((m) => m.includes('"type":"game"'))
+        .some((m) => m.includes("apple") && m.includes("crane")),
+    ).toBe(false);
+
+    host.send({
+      type: "intent",
+      clientActionId: "g1",
+      turnSeq: 2,
+      action: { type: "guess", word: "CRANE" },
+    });
+    await host.waitFor("ack", (a) => a["clientActionId"] === "g1");
+    // The guest still guessing hasn't seen "apple" anywhere; the host's solved row is visible to both.
+    expect(raw.some((m) => m.includes("apple") && !m.includes('"yourSecret":"apple"'))).toBe(false);
+    guest.send({ type: "intent", clientActionId: "g2", turnSeq: 3, action: { type: "give_up" } });
+
+    await host.waitFor("room", (r) => r["phase"] === "results");
+    const end = await guest.waitFor(
+      "game",
+      (g) => (g["view"] as { phase?: string }).phase === "done",
+    );
+    expect(end["view"]).toMatchObject({ theirSecret: "apple", yourSecret: "crane" });
+    await Promise.all([host.room.leave(), guest.room.leave()]);
   });
 });

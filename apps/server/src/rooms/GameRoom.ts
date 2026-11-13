@@ -32,7 +32,7 @@ import { prepareMatch, type Match, type MatchSetup } from "./match.ts";
 import { freeSeat, nameSuggestion, nextHost, pickColor, type Member } from "./members.ts";
 import { createQueue, type Queue } from "./queue.ts";
 import { createRateLimiter } from "./rate-limit.ts";
-import { GAMES, isGameId } from "./registry.ts";
+import { gameById, isGameId } from "./registry.ts";
 import type { Voice } from "../voice/voice.ts";
 import { voiceGuards } from "../voice/webhooks.ts";
 
@@ -401,7 +401,7 @@ export function createGameRoom(deps: GameRoomDeps) {
             this.sendError(client, "RULE_VIOLATION");
             return;
           }
-          const setup = prepareMatch(GAMES[command.gameId], command.config);
+          const setup = prepareMatch(gameById(command.gameId), command.config);
           if (setup === null) {
             this.sendError(client, "INVALID_MESSAGE");
             return;
@@ -872,7 +872,7 @@ export function createGameRoom(deps: GameRoomDeps) {
 
     private restoreMatch(saved: MatchSnapshot): { setup: MatchSetup; match: Match } | null {
       if (!isGameId(saved.gameId)) return null;
-      const module = GAMES[saved.gameId];
+      const module = gameById(saved.gameId);
       // Another version of the rules could replay the same moves differently.
       if (module.version !== saved.moduleVersion) return null;
       const setup = prepareMatch(module, saved.config);
@@ -913,7 +913,7 @@ export function createGameRoom(deps: GameRoomDeps) {
       this.gamesStarted = snapshot.gamesStarted;
       this.setup =
         snapshot.setup !== null && isGameId(snapshot.setup.gameId)
-          ? prepareMatch(GAMES[snapshot.setup.gameId], snapshot.setup.config)
+          ? prepareMatch(gameById(snapshot.setup.gameId), snapshot.setup.config)
           : null;
       // Only a game still in progress comes back (with two of its players); results are already saved.
       const restored =

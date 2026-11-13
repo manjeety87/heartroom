@@ -226,6 +226,9 @@ importers:
       '@heartroom/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
+      '@heartroom/word-guess':
+        specifier: workspace:*
+        version: link:../../packages/games/word-guess
       drizzle-orm:
         specifier: ^0.45.4
         version: 0.45.4(@electric-sql/pglite@0.5.16)(kysely@0.29.8)(postgres@4.1.1)
