@@ -57,6 +57,11 @@ export type GameModule<Config, State, Action, View extends Json> = {
   readonly version: number;
   readonly players: { readonly min: number; readonly max: number };
   readonly configSchema: ZodType<Config>;
+  /**
+   * Whether a game with this config may count towards rankings (e.g. Bingo: Classic 5×5 only).
+   * The platform adds its own conditions (signed-in players, no bots, pair cap).
+   */
+  isRanked(config: Config): boolean;
   /** Every intent from a client is parsed with this before it reaches `validate`. */
   readonly actionSchema: ZodType<Action>;
 

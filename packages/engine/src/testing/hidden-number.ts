@@ -53,6 +53,7 @@ export const hiddenNumber = defineGame({
   players: { min: 2, max: 2 },
   configSchema,
   actionSchema,
+  isRanked: () => false,
 
   setup(config: HiddenNumberConfig, seats, rng): HiddenNumberState {
     if (seats !== 2) throw new RangeError("hidden-number needs exactly 2 seats");

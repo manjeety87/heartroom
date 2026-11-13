@@ -1,5 +1,5 @@
 import { defineGame } from "@heartroom/engine";
-import { bingoConfigSchema, MAX_SEATS } from "./config.ts";
+import { bingoConfigSchema, isClassic, MAX_SEATS } from "./config.ts";
 import {
   apply,
   autoAction,
@@ -16,6 +16,7 @@ export const bingo = defineGame({
   version: 1,
   players: { min: 2, max: MAX_SEATS },
   configSchema: bingoConfigSchema,
+  isRanked: (config) => isClassic(config),
   actionSchema: bingoActionSchema,
   setup: (config, seats) => setup(config, seats),
   validate,
