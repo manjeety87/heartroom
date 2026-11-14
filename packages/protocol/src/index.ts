@@ -40,3 +40,4 @@ export { SEAT_COLOR_IDS, type SeatColorId } from "./seat-colors.ts";
 export { ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH, roomCodeInput } from "./room-code.ts";
 export { GAME_JWT } from "./auth.ts";
 export { nicknameProblem, type NicknameProblem } from "./nickname-filter.ts";
+export { liveRoom, liveRoomsResponse, type LiveRoom, type LiveRoomsResponse } from "./admin.ts";

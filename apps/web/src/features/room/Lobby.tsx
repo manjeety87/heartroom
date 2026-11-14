@@ -8,10 +8,10 @@ import {
   BingoSettings,
   chooseGame,
   describeSettings,
-  gameInfo,
   GamePicker,
   WordGuessSettings,
 } from "./GameSettings.tsx";
+import { gameInfo } from "./games.ts";
 
 /** Who's here and, for the host, the game, the lock and Start. Also sets up the next game. */
 export function Lobby({

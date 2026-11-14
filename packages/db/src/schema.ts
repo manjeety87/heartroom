@@ -37,6 +37,11 @@ export const user = pgTable("user", {
   isAnonymous: boolean("is_anonymous").notNull().default(false),
   /** When the person ticked "I'm 18 or older" (asked once, at their first room join). */
   ageConfirmedAt: timestamp("age_confirmed_at", { withTimezone: true }),
+  /**
+   * Opens /admin and the game server's /internal routes. Set only by `pnpm --filter @heartroom/db
+   * make-admin <email>`, never through Better Auth (it isn't one of its fields, so no request can set it).
+   */
+  isAdmin: boolean("is_admin").notNull().default(false),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -200,4 +205,21 @@ export const voiceUsage = pgTable(
     index("voice_usage_joined_at_idx").on(table.joinedAt),
     index("voice_usage_room_id_user_id_idx").on(table.roomId, table.userId),
   ],
+);
+
+/**
+ * Every admin action (closing a room…), written before the action runs. Deleting the admin's account
+ * keeps the history, with a null `admin_id`.
+ */
+export const adminAudit = pgTable(
+  "admin_audit",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    adminId: text("admin_id").references(() => user.id, { onDelete: "set null" }),
+    action: text("action").notNull(),
+    /** What it was done to, e.g. the room's uuid. Never a secret or another person's data. */
+    target: text("target").notNull(),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("admin_audit_at_idx").on(table.at)],
 );

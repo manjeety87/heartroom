@@ -19,20 +19,12 @@ import {
   type WordGuessConfig,
 } from "@heartroom/word-guess";
 import { sendHost } from "@/lib/room-client/client";
+import { ROOM_GAMES, type RoomGameId } from "./games.ts";
 
 /**
  * The games a room can play and each one's settings, as the lobby shows them. The server checks
  * every config with the game's own schema; this only offers valid ones.
  */
-
-export const ROOM_GAMES = [
-  { id: "bingo", label: "Bingo", hint: "2–6 players", min: 2, max: 6 },
-  { id: "word-guess", label: "Word Guess", hint: "2 players", min: 2, max: 2 },
-] as const;
-
-export type RoomGameId = (typeof ROOM_GAMES)[number]["id"];
-
-export const gameInfo = (id: string | null) => ROOM_GAMES.find((g) => g.id === id) ?? null;
 
 type PresetId = keyof typeof PRESETS;
 const PRESET_IDS = Object.keys(PRESETS) as PresetId[];

@@ -36,6 +36,13 @@
       "when": 1794587720618,
       "tag": "0004_match_nicknames",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794632445395,
+      "tag": "0005_admin",
+      "breakpoints": true
     }
   ]
 }

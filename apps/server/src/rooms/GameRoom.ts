@@ -16,6 +16,7 @@ import {
   type SeatColorId,
 } from "@heartroom/protocol";
 import type { VerifyToken } from "../auth/verify-token.ts";
+import { health, isStuck, liveRooms } from "../internal/live-rooms.ts";
 import {
   chooseRestore,
   RESEAL_EVERY_MS,
@@ -134,6 +135,11 @@ export function createGameRoom(deps: GameRoomDeps) {
     /** Bumped on every sealed checkpoint; orders checkpoints across games. */
     private checkpointSeq = 0;
     private isCheckpointDue = false;
+    private readonly createdAt = Date.now();
+    /** The last move, game start or restore; what the admin page calls "idle". */
+    private lastActionAt = Date.now();
+    /** An admin closed it: the "closed" event is already written, with that reason. */
+    private isClosedByAdmin = false;
     /** While the room is being rebuilt after a restart: the checkpoints and sockets gathered so far. */
     private restoring: {
       readonly resumes: Resume[];
@@ -164,6 +170,7 @@ export function createGameRoom(deps: GameRoomDeps) {
       }
       liveCodes.add(this.roomId);
       this.registerVoiceGuard();
+      this.registerLiveRoom();
       this.log = deps.log.child({ roomId: this.roomId });
       if (this.restoring === null) this.saveEvent("created");
       // Even with no moves, a fresh checkpoint every few minutes keeps a quiet room restorable.
@@ -171,6 +178,7 @@ export function createGameRoom(deps: GameRoomDeps) {
         this.markChanged();
       }, RESEAL_EVERY_MS);
       this.queue = createQueue((error) => {
+        health.failed();
         this.log.error({ event: "room_task_failed", err: error }, "room_task_failed");
       });
       this.onMessage("*", (client, type, payload) => {
@@ -274,6 +282,7 @@ export function createGameRoom(deps: GameRoomDeps) {
         client.leave(CLOSE_CODES.TAKEN_OVER);
         return;
       }
+      health.reconnected();
       this.setVisible(member.userId);
       this.setConnected(client, true);
       this.sendView(client);
@@ -309,13 +318,16 @@ export function createGameRoom(deps: GameRoomDeps) {
     override onDispose() {
       liveCodes.delete(this.roomId);
       voiceGuards.unregister(this.roomUid);
+      liveRooms.unregister(this.roomUid);
       this.deadlineTimer?.clear();
       // Everyone left: the room is over, so a checkpoint someone still holds must not revive it.
-      if (!this.isShuttingDown) this.saveEvent("closed", { reason: "empty" });
+      if (!this.isShuttingDown && !this.isClosedByAdmin)
+        this.saveEvent("closed", { reason: "empty" });
       this.log.info({ event: "room_closed" }, "room_closed");
     }
 
     override onUncaughtException(error: Error, methodName: string) {
+      health.failed();
       this.log.error({ event: "room_exception", method: methodName, err: error }, "room_exception");
     }
 
@@ -496,6 +508,60 @@ export function createGameRoom(deps: GameRoomDeps) {
      * Lets LiveKit webhooks ask this room about someone joining its voice: anyone not in the room
      * (left, kicked, banned) is removed, and a blocked mic can only listen.
      */
+    /** Lets the admin routes list this room (public view only) and close it. */
+    private registerLiveRoom() {
+      liveRooms.register(this.roomUid, {
+        code: () => this.roomId,
+        summary: (now) => {
+          const members = [...this.members.values()];
+          return {
+            code: this.roomId,
+            gameId: this.setup?.gameId ?? null,
+            phase: this.phase,
+            isLocked: this.isLocked,
+            seats: members
+              .filter((m): m is Member & { seat: number } => m.seat !== null)
+              .sort((a, b) => a.seat - b.seat)
+              .map(({ nickname, color, isConnected }) => ({ nickname, color, isConnected })),
+            gamePlayers: this.matchPlayers.map(({ nickname, color }) => ({ nickname, color })),
+            spectators: members.filter((m) => m.seat === null).length,
+            createdAt: this.createdAt,
+            lastActionAt: this.lastActionAt,
+            isStuck: isStuck(
+              this.phase,
+              this.lastActionAt,
+              this.match?.deadline()?.at ?? null,
+              now,
+            ),
+            // The spectator view is the one built to hide every seat's secrets (assertNoLeak).
+            view:
+              this.match === null
+                ? null
+                : { gameId: this.match.gameId, state: this.match.view({ kind: "spectator" }) },
+          };
+        },
+        close: () => {
+          void this.queue.enqueue(() => {
+            this.closeByAdmin();
+          });
+        },
+      });
+    }
+
+    private closeByAdmin() {
+      if (this.isClosedByAdmin) return;
+      this.isClosedByAdmin = true;
+      if (this.phase === "playing") {
+        this.deadlineTimer?.clear();
+        this.saveMatch("abandoned");
+      }
+      this.saveEvent("closed", { reason: "admin" });
+      for (const member of this.members.values())
+        void deps.voice.remove(this.roomUid, member.userId);
+      this.log.info({ event: "closed_by_admin" }, "closed_by_admin");
+      void this.disconnect(CLOSE_CODES.ROOM_CLOSED);
+    }
+
     private registerVoiceGuard() {
       voiceGuards.register(this.roomUid, (identity) => {
         if (this.bans.has(identity) || !this.members.has(identity)) return "remove";
@@ -544,6 +610,7 @@ export function createGameRoom(deps: GameRoomDeps) {
 
     /** After any accepted move: everyone's view, then either the results or the next deadline. */
     private afterMove() {
+      this.lastActionAt = Date.now();
       this.sendViews();
       if (this.match?.result() != null) {
         this.phase = "results";
@@ -748,10 +815,12 @@ export function createGameRoom(deps: GameRoomDeps) {
       }
     }
 
-    private saveMatch(status: "finished") {
+    /** "abandoned" = closed by an admin mid-game: on record, never ranked, no result. */
+    private saveMatch(status: "finished" | "abandoned") {
       const match = this.match;
       const setup = this.matchSetup;
       if (match === null || setup === null) return;
+      const isFinished = status === "finished";
       const { seed, actions } = match.record();
       this.persist("match_save_failed", () =>
         deps.store.recordMatch({
@@ -759,14 +828,14 @@ export function createGameRoom(deps: GameRoomDeps) {
           gameId: match.gameId,
           moduleVersion: setup.moduleVersion,
           config: setup.config,
-          configIsRanked: setup.isRanked,
+          configIsRanked: isFinished && setup.isRanked,
           seed,
           startedAt: new Date(this.matchStartedAt),
           endedAt: new Date(),
           status,
           users: [...this.matchUsers],
           nicknames: this.matchPlayers.map((p) => p.nickname),
-          result: match.result(),
+          result: isFinished ? match.result() : null,
           actions: [...actions] as MatchToRecord["actions"],
         }),
       );
@@ -800,6 +869,7 @@ export function createGameRoom(deps: GameRoomDeps) {
     /** Database writes never hold up the game: they run on their own and failures are logged. */
     private persist(failure: string, write: () => Promise<void>) {
       write().catch((error: unknown) => {
+        health.failed();
         this.log.error({ event: failure, err: error }, failure);
       });
     }
@@ -897,8 +967,10 @@ export function createGameRoom(deps: GameRoomDeps) {
       // A game already written (finished or abandoned) can't come back: that is the roll-back attack.
       const keepsGame = choice.keepsGame && !facts.isMatchRecorded;
       voiceGuards.unregister(this.roomUid);
+      liveRooms.unregister(this.roomUid);
       this.roomUid = snapshot.roomUid;
       this.registerVoiceGuard();
+      this.registerLiveRoom();
       if (snapshot.phase === "playing" && snapshot.match !== null && !keepsGame) {
         if (!facts.isMatchRecorded) this.saveAbandoned(snapshot.match);
       }
@@ -964,6 +1036,7 @@ export function createGameRoom(deps: GameRoomDeps) {
         { event: "checkpoint_restored", phase: this.phase, back: sessionOf.size },
         "checkpoint_restored",
       );
+      this.lastActionAt = Date.now();
       this.saveEvent("restored", { phase: this.phase });
       this.broadcastRoom();
       this.sendViews();

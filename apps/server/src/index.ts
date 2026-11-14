@@ -9,6 +9,7 @@ import { createDbStore } from "./persistence/store.ts";
 import { parseConfig } from "./config.ts";
 import { createLogger } from "./logger.ts";
 import { isAllowedOrigin } from "./origin.ts";
+import { adminEndpoints, createAdminApi, createAdminStore } from "./internal/rooms.ts";
 import { createGameRoom } from "./rooms/GameRoom.ts";
 import { WebhookReceiver } from "livekit-server-sdk";
 import { createVoiceMeter, createVoiceUsageStore } from "./voice/usage.ts";
@@ -69,6 +70,18 @@ const onWebhook =
         log,
       });
 
+const adminApi = createAdminApi({
+  verifyToken,
+  store: createAdminStore(db),
+  voice: () => ({
+    isEnabled: voice.isEnabled,
+    monthMinutes: meter.monthMinutes(),
+    capMinutes: config.VOICE_MONTHLY_CAP_MINUTES ?? null,
+    isResting: meter.isResting(),
+  }),
+  log,
+});
+
 const transport = new WebSocketTransport({
   maxPayload: LIMITS.MESSAGE_BYTES,
   beforeUpgrade(request) {
@@ -101,6 +114,7 @@ const server = defineServer({
       Promise.resolve({ ok: true, bootId, rooms: matchMaker.stats.local.roomCount }),
     ),
     livekitWebhook: webhookEndpoint(onWebhook),
+    ...adminEndpoints(adminApi),
   }),
 });
 

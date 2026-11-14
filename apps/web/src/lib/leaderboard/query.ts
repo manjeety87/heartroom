@@ -197,7 +197,10 @@ async function standingOf(
 }
 
 /** The name each person last played under: there is no profile name, only room nicknames. */
-async function latestNicknames(db: Db, userIds: readonly string[]): Promise<Map<string, string>> {
+export async function latestNicknames(
+  db: Db,
+  userIds: readonly string[],
+): Promise<Map<string, string>> {
   if (userIds.length === 0) return new Map();
   const { matches, matchPlayers } = schema;
   const rows = await db

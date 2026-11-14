@@ -2,8 +2,9 @@
 
 _Update this file at the end of every working session (any agent, any device)._
 
-**Last updated:** 2026-11-13 (Phase 6: Leaderboard)
-**Phase:** Phases 2–6 code done (owner checks pending, see the owner to-do) → next: **Phase 7** (Admin).
+**Last updated:** 2026-11-14 (Phase 7: Admin)
+**Phase:** Phases 2–7 code done (owner checks pending, see the owner to-do) → next: Word Guess polish
+and the gaps to close before launch.
 
 ## Done
 
@@ -133,6 +134,23 @@ _Update this file at the end of every working session (any agent, any device)._
       still need, or Sign in. Checked at 375 px against the local database with seeded players
       (deleted afterwards); your own row not seen in the browser (needs Google sign-in). 363 tests.
 
+- [x] **Phase 7: Admin** (2026-11-14): `user.is_admin` + `admin_audit` (migration 0005), set only by
+      `pnpm --filter @heartroom/db make-admin <email> [--remove]` (Google accounts). Game server
+      `internal/rooms.ts`: `GET /internal/rooms` (per room: code, game, phase, seats, spectators, in voice,
+      open for, idle, stuck, the **spectator** view only; voice minutes vs cap; uptime, reconnects,
+      errors) and `POST /internal/rooms/:code/close` (audit row first; a game in play is recorded as
+      abandoned; closed {reason: admin}). Rooms register in `internal/live-rooms.ts`. Every refusal is
+      404 and `is_admin` is read from the database each time. Site: `/admin` (layout + page check
+      `is_admin`, else 404), "Live rooms" (5 s poll via `/api/admin/rooms`, Inspect = the game drawn
+      from the public view, Close with a second tap) and "Games" (games per game 7/30/all, abandoned
+      rate, most wins per game, voice this month, room events in 24 h). New site env
+      `GAME_SERVER_HTTP_URL` (empty locally = `http://localhost:2567`). Tested: real-server test (no
+      secret word or user id in the answer, close → 4105 for everyone, audit, abandoned row), stats query
+      on in-memory Postgres. Checked in a production build against the local database (a test guest
+      flipped to admin, then back): guest → 404 for the page and both APIs; live room listed,
+      Inspect drew the spectator board, Close (second tap) ended it; Games tab; 375 px fits.
+      Real Google admin not tried. 372 tests.
+
 ## Owner to-do (only the owner can do these; tick them here when done)
 
 - [ ] **LiveKit keys:** cloud.livekit.io → new project → Settings → API Keys → Create key (the secret is
@@ -171,6 +189,11 @@ _Update this file at the end of every working session (any agent, any device)._
       the bottom, long names, light and dark.
 - [ ] **Rest of the redesign on a phone:** Settings (name, colour, every theme light/dark, Make your own,
       text size), 5×5 and 8×8 (two-tap call), results, History step-through, sounds and vibration.
+- [ ] **Make yourself admin** (after Google sign-in works): stop nothing, run
+      `pnpm --filter @heartroom/db make-admin <your Google email>` while `pnpm dev` is running (the
+      local database must be up; restart `pnpm dev` once first so migration 0005 is applied). Open
+      `localhost:3000/admin`: Live rooms (open a room in another browser, Inspect, Close it) and Games.
+      A non-admin browser must get the 404 page.
 - [ ] **Before launch:** answer Q1 (pricing), Q3 (name check), Q5 (server host); then create the Neon
       project (dev/production branches), set `DATABASE_URL`/`DATABASE_URL_DIRECT`, run `pnpm db:migrate`;
       after the deploy set the LiveKit webhook to `https://<game server>/livekit/webhook` and pick
@@ -178,14 +201,15 @@ _Update this file at the end of every working session (any agent, any device)._
 
 ## Next (code, in order)
 
-1. **Phase 7: Admin dashboard.**
-2. Word Guess polish: tile flip motion (60 ms stagger, shape then colour) and a marks legend one tap
+1. Word Guess polish: tile flip motion (60 ms stagger, shape then colour) and a marks legend one tap
    away (design-direction › Word Guess); the refused-word message can't yet say *why* (the server
    sends only RULE_VIOLATION).
-3. Gaps to close before launch: the daily job that clears `matches.actions` after 30 days; "no human
+2. Gaps to close before launch: the daily job that clears `matches.actions` after 30 days; "no human
    for 3 turns → abandoned"; "unranked if auto-played" only counts the server's moves per seat; views
    aren't zod-checked (no `viewSchema` yet); no custom grid size in the room (presets only); unknown
    codes aren't rate-limited (Colyseus answers before `onAuth`): limit the matchmake route.
+3. Admin extras the design names but this slice skipped: the 25-cell progress glyph per row, charts,
+   a stuck-room alert (it's only a badge now).
 4. Not built in the room yet (answer `NOT_AVAILABLE_YET`): knocks (late joiners are spectators for now),
    new code, the host's "mute" (block mic covers it), rematch_ready.
 
@@ -200,7 +224,7 @@ _Update this file at the end of every working session (any agent, any device)._
 | 4 | Google login + history | code done 2026-11-13; owner Google check pending |
 | 5 | Word Guess | done 2026-11-13 (owner check on phones pending) |
 | 6 | Leaderboard | done 2026-11-13 (seen with real ranked games pending) |
-| 7 | Admin dashboard | not started |
+| 7 | Admin dashboard | code done 2026-11-14; owner check pending (needs Google sign-in + make-admin) |
 
 ## Run locally (any laptop, no .env needed)
 
@@ -224,6 +248,10 @@ _Update this file at the end of every working session (any agent, any device)._
   `hiddenNumber` there is the smallest complete example of a `GameModule`.
 - Tailwind only sees workspace packages listed with `@source` in `apps/web/src/app/globals.css`; a
   new package with UI classes must be added there, or its classes silently don't exist.
+- The local database (PGlite behind one socket) mixes up queries sent in parallel from one process
+  ("bind message supplies N parameters"). Neon doesn't; keep server queries sequential, not
+  `Promise.all`, or local pages fail at random.
+- A `Date` inside a raw `sql` template works in tests (PGlite) but postgres.js refuses it: pass `toISOString()`.
 - Phone testing uses plain `http://<laptop-ip>`, which is not a secure context: APIs like
   `crypto.randomUUID` don't exist there (this broke Start game on 2026-11-11). Test on the phone, not
   only on localhost.

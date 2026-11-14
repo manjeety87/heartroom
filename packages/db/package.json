@@ -11,6 +11,7 @@
     "dev": "tsx src/dev-server.ts",
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate --config drizzle.config.ts",
+    "make-admin": "tsx src/make-admin.ts",
     "typecheck": "tsc -p ."
   },
   "dependencies": {
