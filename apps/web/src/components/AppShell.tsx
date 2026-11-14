@@ -7,6 +7,7 @@ import { useFollowSystemMode } from "@/lib/look";
 
 const NAV = [
   { href: "/play", label: "Play", alsoFor: ["/r/"] },
+  { href: "/leaderboard", label: "Ranks", alsoFor: [] },
   { href: "/history", label: "History", alsoFor: [] },
   { href: "/settings", label: "Settings", alsoFor: [] },
 ] as const;
@@ -36,7 +37,7 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
                 key={href}
                 href={href}
                 aria-current={isHere ? "page" : undefined}
-                className={`flex min-h-11 items-center rounded-pill px-3 text-small font-semibold transition-colors duration-(--duration-press) ease-out focus-visible:outline-2 focus-visible:outline-pen ${
+                className={`flex min-h-11 items-center rounded-pill px-2 text-small sm:px-3 font-semibold transition-colors duration-(--duration-press) ease-out focus-visible:outline-2 focus-visible:outline-pen ${
                   isHere ? "bg-well text-ink" : "text-pencil hover:text-ink"
                 }`}
               >
