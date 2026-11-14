@@ -116,6 +116,15 @@ Finished games are stored on the device as `(config, seed, actions, players)` an
 engine's `replay()`, so History shows what really happened, step by step. Online games will use the
 same record from the server (Phase 4).
 
+## Leaderboard
+
+`/leaderboard` renders on the server. `FilterBar` is three `SegmentedControl`s (game · time ·
+players, the last only for Bingo) that push a new URL in a transition, so the old board fades to 60%
+instead of jumping to a skeleton. `LeaderboardTable` uses a real `<table>` (rank, player, wins,
+win rate; games from `sm`), `tabular-nums`, your own row on `bg-well` with "(you)", and a sticky
+bar at the bottom with your rank, what you still need, or "Sign in". The nav calls it **Ranks**
+(four items must fit 375 px; nav items use `px-2` below `sm`).
+
 ## Patterns to copy
 
 - **Per-device values:** `lib/stored.ts` (`useStored` / `writeStored`) with a zod schema. Never read

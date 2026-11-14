@@ -98,3 +98,8 @@ Append-only. One line per decision: date, the decision, and the reason. Details 
 | 2026-11-13 | Word Guess spectators see mark patterns but no letters until the end | Words + marks would let a spectator on voice spell out a secret |
 | 2026-11-13 | Platform change for game #2 = the registry line plus `gameById()` (module types erased for the room) | With two games `GAMES[id]` is a union the room can't call generically; contract now considered frozen (design rule 4) |
 | 2026-11-13 | The host's own "mute" command stays `NOT_AVAILABLE_YET`; mute is each person's own mic button | Block mic covers safety; muting someone else's track adds nothing a block doesn't |
+| 2026-11-13 | Leaderboard windows are rolling (7 days / 30 days / all time), not calendar weeks | A board never empties on a Monday; no timezone choice to explain |
+| 2026-11-13 | Leaderboard = a server-rendered page querying Postgres directly; filters are plain URL params (zod, unknown → default), no nuqs/TanStack Query | One page, no client fetching to keep in sync; Back and shared links just work |
+| 2026-11-13 | Only Google accounts appear, and only signed-in people count as opponents (≥10 ranked games, ≥3 opponents in the window) | Guests are free alt accounts; counting them would let one person farm a board |
+| 2026-11-13 | Board names = the nickname each person last played under; user ids never reach the page | There is no profile name (Google's name is never stored) |
+| 2026-11-13 | Order: total wins, then win rate, then games; equal wins and rate share a rank. Top 50; your own row sticks to the bottom | As the design doc; a shared rank avoids ordering ties by an invisible id |

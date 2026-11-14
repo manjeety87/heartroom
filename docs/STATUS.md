@@ -2,8 +2,8 @@
 
 _Update this file at the end of every working session (any agent, any device)._
 
-**Last updated:** 2026-11-13 (Phase 5: Word Guess)
-**Phase:** Phases 2–5 code done (owner checks pending, see the owner to-do) → next: **Phase 6** (Leaderboard).
+**Last updated:** 2026-11-13 (Phase 6: Leaderboard)
+**Phase:** Phases 2–6 code done (owner checks pending, see the owner to-do) → next: **Phase 7** (Admin).
 
 ## Done
 
@@ -125,6 +125,13 @@ _Update this file at the end of every working session (any agent, any device)._
       `GameKeyboard` (on-screen + physical), `WordGuessGame`. Registry line + `gameById` (types erased for
       the room). Lobby game picker + per-game settings. Played in a production build against the real
       server with a scripted second player. 359 tests.
+- [x] **Phase 6: Leaderboard** (2026-11-13): `/leaderboard` (nav: Ranks), rendered on the server.
+      `lib/leaderboard/filters.ts` (game · 7 days / 30 days / all time · Bingo player band, from the URL
+      with zod) and `query.ts` (ranked finished games only; total wins = sum of win_share, win rate,
+      ≥10 games and ≥3 different signed-in opponents in the window; Google accounts only; names = last
+      nickname; equal wins + rate share a rank; top 50 + your own row). Sticky bar: your rank, what you
+      still need, or Sign in. Checked at 375 px against the local database with seeded players
+      (deleted afterwards); your own row not seen in the browser (needs Google sign-in). 363 tests.
 
 ## Owner to-do (only the owner can do these; tick them here when done)
 
@@ -160,6 +167,8 @@ _Update this file at the end of every working session (any agent, any device)._
       (reconnecting bar, then back), Leave.
 - [ ] **Word Guess on two devices:** pick Word Guess in the lobby, both choose a word, guess, give up once,
       rematch. Check the tiles are readable in light and dark themes and the keyboard fits a phone.
+- [ ] **Leaderboard on a phone** (after Google sign-in and some ranked games): filters, your own row at
+      the bottom, long names, light and dark.
 - [ ] **Rest of the redesign on a phone:** Settings (name, colour, every theme light/dark, Make your own,
       text size), 5×5 and 8×8 (two-tap call), results, History step-through, sounds and vibration.
 - [ ] **Before launch:** answer Q1 (pricing), Q3 (name check), Q5 (server host); then create the Neon
@@ -169,7 +178,7 @@ _Update this file at the end of every working session (any agent, any device)._
 
 ## Next (code, in order)
 
-1. **Phase 6: Leaderboard.**
+1. **Phase 7: Admin dashboard.**
 2. Word Guess polish: tile flip motion (60 ms stagger, shape then colour) and a marks legend one tap
    away (design-direction › Word Guess); the refused-word message can't yet say *why* (the server
    sends only RULE_VIOLATION).
@@ -190,7 +199,7 @@ _Update this file at the end of every working session (any agent, any device)._
 | 3 | Voice (LiveKit) + host powers | code done 2026-11-13; owner voice checks pending (needs LiveKit keys) |
 | 4 | Google login + history | code done 2026-11-13; owner Google check pending |
 | 5 | Word Guess | done 2026-11-13 (owner check on phones pending) |
-| 6 | Leaderboard | not started |
+| 6 | Leaderboard | done 2026-11-13 (seen with real ranked games pending) |
 | 7 | Admin dashboard | not started |
 
 ## Run locally (any laptop, no .env needed)
