@@ -42,7 +42,12 @@ export type Match = {
   deadline(): Deadline | null;
   result(): MatchResult | null;
   /** What a checkpoint keeps: the game is rebuilt from these by replaying them (`restore`). */
-  record(): { readonly seed: Uint8Array; readonly actions: readonly LogEntry<unknown>[] };
+  record(): {
+    readonly seed: Uint8Array;
+    readonly actions: readonly LogEntry<unknown>[];
+    /** `turns[i]` = the deadline key in force when action `i` was made (null: no deadline). */
+    readonly turns: readonly (string | null)[];
+  };
 };
 
 export type MatchSetup = {
@@ -135,7 +140,7 @@ export function prepareMatch<Config, State, Action, View extends Json>(
       view: (viewer) => module.view(state, viewer),
       deadline: () => module.nextDeadline(state),
       result: () => module.result(state),
-      record: () => ({ seed, actions: log }),
+      record: () => ({ seed, actions: log, turns: turnKeys.slice(0, log.length) }),
     };
     return { match, replay: (entry) => apply(entry).ok };
   }

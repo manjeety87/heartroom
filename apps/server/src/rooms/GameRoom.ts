@@ -875,7 +875,7 @@ export function createGameRoom(deps: GameRoomDeps) {
       const setup = this.matchSetup;
       if (match === null || setup === null) return;
       const isFinished = status === "finished";
-      const { seed, actions } = match.record();
+      const { seed, actions, turns } = match.record();
       this.persist("match_save_failed", () =>
         deps.store.recordMatch({
           id: this.matchId,
@@ -890,7 +890,7 @@ export function createGameRoom(deps: GameRoomDeps) {
           users: [...this.matchUsers],
           nicknames: this.matchPlayers.map((p) => p.nickname),
           result: isFinished ? match.result() : null,
-          actions: [...actions] as MatchToRecord["actions"],
+          actions: actions.map(({ seat, by }, i) => ({ seat, by, turn: turns[i] ?? null })),
         }),
       );
     }

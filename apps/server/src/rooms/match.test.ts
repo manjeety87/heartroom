@@ -1,6 +1,7 @@
 import { CLASSIC, bingo } from "@heartroom/bingo";
 import { newSeed } from "@heartroom/engine";
 import { describe, expect, it } from "vitest";
+import { autoPlayedTurns } from "../persistence/ranking.ts";
 import { prepareMatch } from "./match.ts";
 
 /** Two grids that share no run of numbers, so finding one inside the other's view means a leak. */
@@ -28,6 +29,14 @@ describe("prepareMatch", () => {
     });
     expect(match.play(0, { type: "fill", grid: grid(1) })).toEqual({ ok: true });
     expect(match.turnSeq()).toBe(1);
+  });
+
+  it("records the turn each move was made in, so one timed-out setup is one auto-played turn", () => {
+    const match = prepareMatch(bingo, CLASSIC)!.start(2, newSeed());
+    for (let i = 0; i < 4; i++) match.autoPlay(match.deadline()!.seat); // fill + ready, both seats
+    const { actions, turns } = match.record();
+    const recorded = actions.map(({ seat, by }, i) => ({ seat, by, turn: turns[i] ?? null }));
+    expect(autoPlayedTurns(2, recorded)).toEqual([1, 1]);
   });
 
   it("when a deadline passes, then the server's move is legal and keeps the game going", () => {

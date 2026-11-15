@@ -34,16 +34,24 @@ export function seatOutcomes(seats: number, result: MatchResult | null): SeatOut
   });
 }
 
-/** How many times the server played each seat (its deadline passed while the player was away). */
+/**
+ * How many of each seat's turns the server played (its deadline passed). One timed-out turn can be
+ * several moves (a Bingo setup is fill, then ready), so moves are grouped by the deadline key they
+ * were made under; a move without a key counts as a turn of its own.
+ */
 export function autoPlayedTurns(
   seats: number,
-  actions: readonly { readonly seat: number; readonly by: "player" | "server" }[],
+  actions: readonly {
+    readonly seat: number;
+    readonly by: "player" | "server";
+    readonly turn?: string | null;
+  }[],
 ): number[] {
-  const counts = Array.from({ length: seats }, () => 0);
-  for (const { seat, by } of actions) {
-    if (by === "server" && seat < seats) counts[seat] = (counts[seat] ?? 0) + 1;
-  }
-  return counts;
+  const turns = Array.from({ length: seats }, () => new Set<string>());
+  actions.forEach(({ seat, by, turn }, i) => {
+    if (by === "server" && seat < seats) turns[seat]?.add(turn ?? `move:${String(i)}`);
+  });
+  return turns.map((set) => set.size);
 }
 
 /**

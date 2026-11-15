@@ -46,7 +46,12 @@ export type MatchToRecord = {
   /** The name per game seat, as the room showed it. */
   readonly nicknames: readonly string[];
   readonly result: MatchResult | null;
-  readonly actions: readonly { readonly seat: number; readonly by: "player" | "server" }[];
+  /** `turn`: the deadline key the move was made under, so a turn auto-played in several moves counts once. */
+  readonly actions: readonly {
+    readonly seat: number;
+    readonly by: "player" | "server";
+    readonly turn?: string | null;
+  }[];
 };
 
 export function createDbStore(db: Db): RoomStore {

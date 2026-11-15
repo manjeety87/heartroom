@@ -49,6 +49,17 @@ describe("isRankEligible", () => {
 });
 
 describe("autoPlayedTurns", () => {
+  it("counts a turn the server played in several moves once", () => {
+    const actions = [
+      { seat: 0, by: "server", turn: "setup" },
+      { seat: 0, by: "server", turn: "setup" },
+      { seat: 1, by: "player", turn: "setup" },
+      { seat: 0, by: "server", turn: "call:3" },
+      { seat: 0, by: "server", turn: "call:5" },
+    ] as const;
+    expect(autoPlayedTurns(2, actions)).toEqual([3, 0]);
+  });
+
   it("counts only the server's moves, per seat", () => {
     const actions = [
       { seat: 0, by: "player" },
