@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { defineRoom, defineServer, type Server } from "@colyseus/core";
 import { WebSocketTransport } from "@colyseus/ws-transport";
 import { Client, type Room } from "@colyseus/sdk";
+import { schema, type Db } from "@heartroom/db";
 import { openTestDb } from "@heartroom/db/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createTokenVerifier } from "../auth/verify-token.ts";
@@ -19,6 +20,7 @@ import { createGameRoom } from "./GameRoom.ts";
 const PORT = 2654;
 let server: Server;
 let closeDb: () => Promise<void>;
+let db: Db;
 
 const voiceCalls: string[] = [];
 const voice: Voice = {
@@ -35,6 +37,7 @@ const voice: Voice = {
 beforeAll(async () => {
   const opened = await openTestDb();
   closeDb = opened.close;
+  db = opened.db;
   server = defineServer({
     transport: new WebSocketTransport(),
     greet: false,
@@ -263,5 +266,29 @@ describe("word guess in a room", () => {
     );
     expect(end["view"]).toMatchObject({ theirSecret: "apple", yourSecret: "crane" });
     await Promise.all([host.room.leave(), guest.room.leave()]);
+  });
+});
+
+describe("a game everyone left", () => {
+  it("is recorded as abandoned when the room closes", async () => {
+    const host = await create("a1", "Anya");
+    const guest = await join(host.room.roomId, "a2", "Dev");
+    host.send({ type: "host", kind: "config", gameId: "bingo", config: QUICK });
+    await host.waitFor("room", (r) => r["gameId"] === "bingo");
+    host.send({ type: "host", kind: "start" });
+    await host.waitFor("room", (r) => r["phase"] === "playing");
+    const countAbandoned = async () =>
+      (await db.select({ status: schema.matches.status }).from(schema.matches)).filter(
+        (m) => m.status === "abandoned",
+      ).length;
+    const before = await countAbandoned();
+    let abandoned = before;
+    // Both leave on purpose: nobody keeps the room open, so it closes with the game unfinished.
+    await Promise.all([host.room.leave(), guest.room.leave()]);
+    for (let waited = 0; waited < 3_000 && abandoned === before; waited += 50) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      abandoned = await countAbandoned();
+    }
+    expect(abandoned).toBe(before + 1);
   });
 });

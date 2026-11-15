@@ -65,6 +65,11 @@ const RECONNECT_SECONDS = 60;
 /** Duplicate intents are re-acknowledged, not re-applied, within this many recent ids. */
 const RECENT_ACTION_IDS = 50;
 const MINUTE = 60_000;
+/**
+ * Turns the server may play in a row while none of the game's players is connected; then the game
+ * is abandoned (design doc › Seats nobody is playing). Spectators don't keep a game alive.
+ */
+export const UNATTENDED_TURNS_LIMIT = 3;
 /** How long a room rebuilt after a restart waits for its players' checkpoints (design doc rule 2). */
 const RESTORE_WINDOW_MS = 5_000;
 
@@ -141,6 +146,8 @@ export function createGameRoom(deps: GameRoomDeps) {
     private readonly createdAt = Date.now();
     /** The last move, game start or restore; what the admin page calls "idle". */
     private lastActionAt = Date.now();
+    /** Turns the server has played in a row with no player of the game connected. */
+    private unattendedTurns = 0;
     /** An admin closed it: the "closed" event is already written, with that reason. */
     private isClosedByAdmin = false;
     /** While the room is being rebuilt after a restart: the checkpoints and sockets gathered so far. */
@@ -324,8 +331,11 @@ export function createGameRoom(deps: GameRoomDeps) {
       liveRooms.unregister(this.roomUid);
       this.deadlineTimer?.clear();
       // Everyone left: the room is over, so a checkpoint someone still holds must not revive it.
-      if (!this.isShuttingDown && !this.isClosedByAdmin)
+      if (!this.isShuttingDown && !this.isClosedByAdmin) {
+        // A game nobody came back to finish is still on record, as abandoned.
+        if (this.phase === "playing") this.saveMatch("abandoned");
         this.saveEvent("closed", { reason: "empty" });
+      }
       this.log.info({ event: "room_closed" }, "room_closed");
     }
 
@@ -401,6 +411,7 @@ export function createGameRoom(deps: GameRoomDeps) {
       this.recentActionIds.push(actionKey);
       if (this.recentActionIds.length > RECENT_ACTION_IDS) this.recentActionIds.shift();
       client.send("ack", { type: "ack", clientActionId });
+      this.unattendedTurns = 0;
       this.afterMove();
     }
 
@@ -602,6 +613,7 @@ export function createGameRoom(deps: GameRoomDeps) {
       this.phase = "playing";
       this.deadlineClock = null;
       this.recentActionIds.length = 0;
+      this.unattendedTurns = 0;
       this.log.info(
         { event: "match_started", gameId: match.gameId, seats: order.length },
         "match_started",
@@ -675,7 +687,41 @@ export function createGameRoom(deps: GameRoomDeps) {
       }
       match.autoPlay(deadline.seat);
       this.log.info({ event: "auto_played", seat: deadline.seat, turnSeq }, "auto_played");
+      const isAnyPlayerHere = this.matchUsers.some(
+        (u) => this.members.get(u)?.isConnected === true,
+      );
+      this.unattendedTurns = isAnyPlayerHere ? 0 : this.unattendedTurns + 1;
+      if (this.unattendedTurns >= UNATTENDED_TURNS_LIMIT && match.result() === null) {
+        this.abandonMatch();
+        return;
+      }
       this.afterMove();
+    }
+
+    /** Nobody is playing any more: record the game as abandoned and take the room back to its lobby. */
+    private abandonMatch() {
+      this.deadlineTimer?.clear();
+      this.deadlineClock = null;
+      this.broadcastDeadline(null);
+      this.saveMatch("abandoned");
+      this.log.info({ event: "match_abandoned" }, "match_abandoned");
+      this.match = null;
+      this.phase = "lobby";
+      // The players who left keep no seat; whoever is still here (spectators) can take one.
+      for (const member of this.members.values()) {
+        if (!member.isConnected) this.members.delete(member.userId);
+      }
+      const others = [...this.members.values()];
+      for (const member of others) {
+        if (member.seat === null) {
+          const seat = freeSeat([...this.members.values()], LIMITS.MAX_SEATS);
+          if (seat !== null) this.members.set(member.userId, { ...member, seat });
+        }
+      }
+      if (this.hostId !== null && !this.members.has(this.hostId)) {
+        this.hostId = nextHost([...this.members.values()], this.hostId) ?? this.hostId;
+      }
+      this.broadcastRoom();
     }
 
     // ── presence and sending ──────────────────────────────────────────────────────────────────
