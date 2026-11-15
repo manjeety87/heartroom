@@ -2,7 +2,7 @@
 
 _Update this file at the end of every working session (any agent, any device)._
 
-**Last updated:** 2026-11-15 (game hub, Word Guess polish)
+**Last updated:** 2026-11-15 (game hub, Word Guess polish, pre-launch gaps)
 **Phase:** Phases 2–7 code done (owner checks pending, see the owner to-do) → next: Word Guess polish
 and the gaps to close before launch.
 
@@ -166,6 +166,22 @@ and the gaps to close before launch.
       `features/room/refusals.ts` maps reason → code → protocol text per game ("Pick an everyday word
       for your secret. That one is too rare."). Checked in the browser with a scripted friend: refusal
       text, flip on the new row only, no flip after a refresh, legend doesn't move the keyboard. 377 tests.
+- [x] **Pre-launch gaps** (2026-11-15), one commit each:
+      **Matchmaking** (`matchmaking.ts`): only `create`/`joinById`/`reconnect` are exposed (Colyseus's
+      `join`/`joinOrCreate` let anyone into any open room without a code); every call but reconnect
+      takes a per-IP token, 30/min, so codes can't be guessed. **Client IP** (`client-ip.ts`): Colyseus
+      trusted the client-written first `X-Forwarded-For`, so every per-IP limit was dodgeable; now
+      `TRUST_PROXY` (required in production) picks the address the proxy appended.
+      **Retention** (`persistence/retention.ts`): `matches.actions` emptied 30 days after a game, a
+      minute after boot then daily. **Abandoned games**: 3 auto-played turns in a row with no player
+      connected → recorded abandoned, room back to the lobby; a room that closes mid-game because
+      everyone left now records the game as abandoned too (it recorded nothing). **Ranking**: "more
+      than 2 auto-played turns" now counts turns (deadline keys), not moves (one Bingo setup timeout
+      was 2). **Views**: `GameModule.viewSchema` (strict zod) for every game; `assertNoLeak` checks
+      every view against it; the game message carries `gameId` and the site parses each view before
+      drawing (`features/games/views.ts`), which also fixes drawing the last game's view as the next
+      game. **Custom Bingo grid** in rooms (3×3–8×8, lines 1…2N+2). Checked with real-server tests and
+      in the browser; the 3-turn rule has no automated test (real clocks are ≥15 s). 394 tests.
 
 ## Owner to-do (only the owner can do these; tick them here when done)
 
@@ -216,17 +232,14 @@ and the gaps to close before launch.
 - [ ] **Before launch:** answer Q1 (pricing), Q3 (name check), Q5 (server host); then create the Neon
       project (dev/production branches), set `DATABASE_URL`/`DATABASE_URL_DIRECT`, run `pnpm db:migrate`;
       after the deploy set the LiveKit webhook to `https://<game server>/livekit/webhook` and pick
-      `VOICE_MONTHLY_CAP_MINUTES`.
+      `VOICE_MONTHLY_CAP_MINUTES`. On the game server set `TRUST_PROXY=1` (Fly or Railway; it won't
+      boot in production without it).
 
 ## Next (code, in order)
 
-1. Gaps to close before launch: the daily job that clears `matches.actions` after 30 days; "no human
-   for 3 turns → abandoned"; "unranked if auto-played" only counts the server's moves per seat; views
-   aren't zod-checked (no `viewSchema` yet); no custom grid size in the room (presets only); unknown
-   codes aren't rate-limited (Colyseus answers before `onAuth`): limit the matchmake route.
-2. Admin extras the design names but this slice skipped: the 25-cell progress glyph per row, charts,
+1. Admin extras the design names but this slice skipped: the 25-cell progress glyph per row, charts,
    a stuck-room alert (it's only a badge now).
-3. Not built in the room yet (answer `NOT_AVAILABLE_YET`): knocks (late joiners are spectators for now),
+2. Not built in the room yet (answer `NOT_AVAILABLE_YET`): knocks (late joiners are spectators for now),
    new code, the host's "mute" (block mic covers it), rematch_ready.
 
 ## Phases
