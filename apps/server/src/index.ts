@@ -5,6 +5,7 @@ import { LIMITS } from "@heartroom/protocol";
 import { createTokenVerifier } from "./auth/verify-token.ts";
 import { createSealer } from "./checkpoint.ts";
 import { connectPostgres } from "@heartroom/db";
+import { scheduleRetention } from "./persistence/retention.ts";
 import { createDbStore } from "./persistence/store.ts";
 import { parseConfig } from "./config.ts";
 import { createLogger } from "./logger.ts";
@@ -51,6 +52,7 @@ const sealer = createSealer({
 // The game never waits on this: rooms write matches and events in the background.
 const db = connectPostgres(config.DATABASE_URL);
 const store = createDbStore(db);
+scheduleRetention(db, log);
 
 const voice = createVoice(config.voice, log);
 const meter = createVoiceMeter({
