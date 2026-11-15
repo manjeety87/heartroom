@@ -61,6 +61,12 @@ const envSchema = z
     VOICE_ENABLED: optional(z.enum(["true", "false"])).default("true"),
     /** Voice minutes per calendar month (UTC); past it new voice tokens are refused. Unset = no cap. */
     VOICE_MONTHLY_CAP_MINUTES: optional(z.coerce.number().int().positive()),
+    /**
+     * Proxies in front of the server that append to X-Forwarded-For (Fly, Railway: 1). Per-IP limits
+     * read the client address that many places from the right (client-ip.ts). Required in
+     * production, where a wrong 0 would let anyone dodge every limit with a made-up header.
+     */
+    TRUST_PROXY: optional(z.coerce.number().int().min(0).max(5)),
     LOG_LEVEL: optional(z.enum(["fatal", "error", "warn", "info", "debug", "trace"])).default(
       "info",
     ),
@@ -74,7 +80,7 @@ const envSchema = z
       }
     }
     if (env.NODE_ENV !== "production") return;
-    for (const key of ["AUTH_JWKS_URL", "CHECKPOINT_KEY", "DATABASE_URL"] as const) {
+    for (const key of ["AUTH_JWKS_URL", "CHECKPOINT_KEY", "DATABASE_URL", "TRUST_PROXY"] as const) {
       if (env[key] === undefined) {
         ctx.addIssue({ code: "custom", path: [key], message: "required in production" });
       }
@@ -96,6 +102,7 @@ const envSchema = z
   .transform((env) => ({
     ...env,
     ALLOWED_ORIGINS: env.ALLOWED_ORIGINS ?? ["*"],
+    TRUST_PROXY: env.TRUST_PROXY ?? 0,
     AUTH_JWKS_URL: env.AUTH_JWKS_URL ?? DEV_JWKS_URL,
     CHECKPOINT_KEY: env.CHECKPOINT_KEY ?? DEV_CHECKPOINT_KEY,
     DATABASE_URL: env.DATABASE_URL ?? DEV_DATABASE_URL,

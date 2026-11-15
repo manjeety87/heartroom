@@ -51,6 +51,7 @@ beforeAll(async () => {
           bootId: "presence-boot",
           voice,
           isVoiceResting: () => false,
+          trustProxy: 0,
           spectatorVoiceIdleMs: 100,
         }),
       ),

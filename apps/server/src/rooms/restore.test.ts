@@ -54,6 +54,7 @@ async function startServer(bootId: string): Promise<Server> {
           bootId,
           voice: createVoice(null, createLogger("silent")),
           isVoiceResting: () => false,
+          trustProxy: 0,
         }),
       ),
     },

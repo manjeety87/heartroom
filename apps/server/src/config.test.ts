@@ -49,6 +49,13 @@ describe("parseConfig", () => {
     );
   });
 
+  it("when production doesn't say how many proxies it is behind, then refuses to boot", () => {
+    expect(() => parseConfig({ NODE_ENV: "production" })).toThrow(/TRUST_PROXY: required/);
+    expect(parseConfig({}).TRUST_PROXY).toBe(0);
+    expect(parseConfig({ TRUST_PROXY: "1" }).TRUST_PROXY).toBe(1);
+    expect(() => parseConfig({ TRUST_PROXY: "-1" })).toThrow(/TRUST_PROXY/);
+  });
+
   it("when production has no origin list, then refuses to boot", () => {
     expect(() => parseConfig({ NODE_ENV: "production" })).toThrow(/ALLOWED_ORIGINS: required/);
   });
@@ -63,6 +70,7 @@ describe("parseConfig", () => {
       ALLOWED_ORIGINS: "https://heartroom.test",
       CHECKPOINT_KEY: Buffer.alloc(32, 7).toString("base64"),
       DATABASE_URL: "postgres://u:p@db.heartroom.test/heartroom",
+      TRUST_PROXY: "1",
     } as const;
     expect(() => parseConfig(env)).toThrow(/AUTH_JWKS_URL: required/);
     const withKeys = { ...env, AUTH_JWKS_URL: "https://heartroom.test/api/auth/jwks" };

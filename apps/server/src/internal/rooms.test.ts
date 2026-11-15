@@ -73,6 +73,7 @@ beforeAll(async () => {
           bootId: "admin-boot",
           voice,
           isVoiceResting: () => false,
+          trustProxy: 0,
         }),
       ),
     },

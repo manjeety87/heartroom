@@ -16,6 +16,7 @@ import {
   type SeatColorId,
 } from "@heartroom/protocol";
 import type { VerifyToken } from "../auth/verify-token.ts";
+import { clientIp } from "../client-ip.ts";
 import { health, isStuck, liveRooms } from "../internal/live-rooms.ts";
 import {
   chooseRestore,
@@ -50,6 +51,8 @@ export type GameRoomDeps = {
   readonly voice: Voice;
   /** True once this month's voice minutes reach the cap: new voice tokens are refused. */
   readonly isVoiceResting: () => boolean;
+  /** Proxies in front of the server (`TRUST_PROXY`), for the real client IP in join limits. */
+  readonly trustProxy: number;
   /** Tests shorten this; production uses `SPECTATOR_VOICE_IDLE_MS`. */
   readonly spectatorVoiceIdleMs?: number;
 };
@@ -191,7 +194,7 @@ export function createGameRoom(deps: GameRoomDeps) {
       const identity = await deps.verifyToken(context.token);
       if (identity === null) refuse(401, "UNAUTHORIZED");
       const { userId } = identity;
-      const ip = context.ip ?? "unknown";
+      const ip = clientIp(context.headers, context.ip, deps.trustProxy);
       const isCreating = this.hostId === null && this.members.size === 0;
       const isAllowed = isCreating
         ? createPerIp.take(ip) && createPerUser.take(userId)

@@ -8,6 +8,7 @@ import { connectPostgres } from "@heartroom/db";
 import { createDbStore } from "./persistence/store.ts";
 import { parseConfig } from "./config.ts";
 import { createLogger } from "./logger.ts";
+import { guardMatchmaking } from "./matchmaking.ts";
 import { isAllowedOrigin } from "./origin.ts";
 import { adminEndpoints, createAdminApi, createAdminStore } from "./internal/rooms.ts";
 import { createGameRoom } from "./rooms/GameRoom.ts";
@@ -106,6 +107,7 @@ const server = defineServer({
         store,
         voice,
         isVoiceResting: () => meter.isResting(),
+        trustProxy: config.TRUST_PROXY,
       }),
     ),
   },
@@ -118,5 +120,6 @@ const server = defineServer({
   }),
 });
 
+guardMatchmaking({ trustProxy: config.TRUST_PROXY, log });
 await server.listen(config.PORT);
 log.info({ event: "server_started", port: config.PORT, bootId }, "server_started");
