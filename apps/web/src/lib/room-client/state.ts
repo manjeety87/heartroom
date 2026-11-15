@@ -47,7 +47,12 @@ export type RoomState = {
   readonly game: { readonly seq: number; readonly view: unknown } | null;
   readonly outbox: readonly PendingIntent[];
   /** The last refusal from the server; `id` changes so the same code twice still shows twice. */
-  readonly notice: { readonly id: number; readonly code: ErrorCode } | null;
+  /** The server's last refusal; `reason` is the game's key for a refused move, when it gave one. */
+  readonly notice: {
+    readonly id: number;
+    readonly code: ErrorCode;
+    readonly reason?: string;
+  } | null;
   readonly closed: ClosedReason | null;
   /** The room's newest sealed checkpoint: opaque, only handed back after a restart. */
   readonly checkpoint: string | null;
@@ -111,7 +116,11 @@ export function applyServerMessage(
       return {
         ...state,
         outbox: [],
-        notice: { id: (state.notice?.id ?? 0) + 1, code: message.code },
+        notice: {
+          id: (state.notice?.id ?? 0) + 1,
+          code: message.code,
+          ...(message.reason !== undefined && { reason: message.reason }),
+        },
       };
     case "checkpoint":
       return { ...state, checkpoint: message.checkpoint };

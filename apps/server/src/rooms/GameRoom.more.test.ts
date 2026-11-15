@@ -220,7 +220,10 @@ describe("word guess in a room", () => {
       turnSeq: 0,
       action: { type: "set", word: "qzxyw" },
     });
-    expect(await host.waitFor("error")).toMatchObject({ code: "RULE_VIOLATION" });
+    expect(await host.waitFor("error")).toMatchObject({
+      code: "RULE_VIOLATION",
+      reason: "not_a_common_word",
+    });
     host.send({
       type: "intent",
       clientActionId: "s1",

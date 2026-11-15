@@ -213,6 +213,14 @@ export const errorMessage = z.strictObject({
   type: z.literal("error"),
   code: z.enum(ERROR_CODES),
   message: z.string().max(200),
+  /**
+   * For a refused move: the game's stable key for why (`not_a_word`), which the site turns into
+   * copy. Rules may only give reasons that reveal nothing hidden (engine › RuleError).
+   */
+  reason: z
+    .string()
+    .regex(/^[a-z0-9_]{1,40}$/)
+    .optional(),
 });
 
 /**

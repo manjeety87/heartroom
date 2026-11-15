@@ -32,7 +32,10 @@ export type Match = {
   play(
     seat: number,
     raw: unknown,
-  ): { readonly ok: true } | { readonly ok: false; readonly code: ErrorCode };
+  ):
+    | { readonly ok: true }
+    /** `reason`: the game's own key for a refused move (never hidden information). */
+    | { readonly ok: false; readonly code: ErrorCode; readonly reason?: string };
   /** Plays the game's `autoAction` for `seat` (its deadline passed). */
   autoPlay(seat: number): void;
   view(viewer: Viewer): Json;
@@ -104,7 +107,7 @@ export function prepareMatch<Config, State, Action, View extends Json>(
 
     const apply = (entry: LogEntry<Action>) => {
       const outcome = step(module, state, entry);
-      if (!outcome.ok) return { ok: false as const, code: outcome.code };
+      if (!outcome.ok) return { ok: false as const, code: outcome.code, reason: outcome.reason };
       state = outcome.state;
       log.push(entry);
       turnKeys.push(module.nextDeadline(state)?.key ?? null);

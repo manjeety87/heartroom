@@ -392,7 +392,7 @@ export function createGameRoom(deps: GameRoomDeps) {
       }
       const outcome = this.match.play(seat, action);
       if (!outcome.ok) {
-        this.sendError(client, outcome.code);
+        this.sendError(client, outcome.code, outcome.reason);
         return;
       }
       this.recentActionIds.push(actionKey);
@@ -757,8 +757,13 @@ export function createGameRoom(deps: GameRoomDeps) {
       this.broadcast("deadline", { type: "deadline", deadline } satisfies DeadlineMessage);
     }
 
-    private sendError(client: Client, code: ErrorCode) {
-      client.send("error", { type: "error", code, message: ERROR_MESSAGES[code] });
+    private sendError(client: Client, code: ErrorCode, reason?: string) {
+      client.send("error", {
+        type: "error",
+        code,
+        message: ERROR_MESSAGES[code],
+        ...(reason !== undefined && { reason }),
+      });
     }
 
     private broadcastRoom() {

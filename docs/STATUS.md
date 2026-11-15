@@ -2,7 +2,7 @@
 
 _Update this file at the end of every working session (any agent, any device)._
 
-**Last updated:** 2026-11-15 (game hub)
+**Last updated:** 2026-11-15 (game hub, Word Guess polish)
 **Phase:** Phases 2–7 code done (owner checks pending, see the owner to-do) → next: Word Guess polish
 and the gaps to close before launch.
 
@@ -158,6 +158,14 @@ and the gaps to close before launch.
       records, so a new game can't half-exist. `/play` redirects home; nav says Games. Checked in the
       browser: home, game page, creating a Word Guess room lands with Word Guess picked (found and
       fixed: React's double effect in dev picked Bingo), Change game, 360 px fits. 375 tests.
+- [x] **Word Guess polish** (2026-11-15): a sent guess's tiles turn over one by one (CSS keyframes
+      `tile-flip` + `tile-face` in `tokens.css`: 320 ms, 60 ms stagger, shape then colour; reduced
+      motion keeps only the colour snap; rows already there on load never flip). "What do the tiles
+      mean?" under the keyboard (players) and under the boards (spectators). Refused moves now say
+      why: the room passes the rule's `reason` (`errorMessage.reason`, `[a-z0-9_]`), and
+      `features/room/refusals.ts` maps reason → code → protocol text per game ("Pick an everyday word
+      for your secret. That one is too rare."). Checked in the browser with a scripted friend: refusal
+      text, flip on the new row only, no flip after a refresh, legend doesn't move the keyboard. 377 tests.
 
 ## Owner to-do (only the owner can do these; tick them here when done)
 
@@ -197,6 +205,7 @@ and the gaps to close before launch.
       the bottom, long names, light and dark.
 - [ ] **New home on a phone:** home → tap a game → its page → Create room → the lobby already has
       that game. Try both games, "Change game" in the lobby, and "Have a code?" from home.
+      In Word Guess: a made-up secret says why it was refused, guesses flip in, the tiles legend opens.
 - [ ] **Rest of the redesign on a phone:** Settings (name, colour, every theme light/dark, Make your own,
       text size), 5×5 and 8×8 (two-tap call), results, History step-through, sounds and vibration.
 - [ ] **Make yourself admin** (after Google sign-in works): stop nothing, run
@@ -211,16 +220,13 @@ and the gaps to close before launch.
 
 ## Next (code, in order)
 
-1. Word Guess polish: tile flip motion (60 ms stagger, shape then colour) and a marks legend one tap
-   away (design-direction › Word Guess); the refused-word message can't yet say *why* (the server
-   sends only RULE_VIOLATION).
-2. Gaps to close before launch: the daily job that clears `matches.actions` after 30 days; "no human
+1. Gaps to close before launch: the daily job that clears `matches.actions` after 30 days; "no human
    for 3 turns → abandoned"; "unranked if auto-played" only counts the server's moves per seat; views
    aren't zod-checked (no `viewSchema` yet); no custom grid size in the room (presets only); unknown
    codes aren't rate-limited (Colyseus answers before `onAuth`): limit the matchmake route.
-3. Admin extras the design names but this slice skipped: the 25-cell progress glyph per row, charts,
+2. Admin extras the design names but this slice skipped: the 25-cell progress glyph per row, charts,
    a stuck-room alert (it's only a badge now).
-4. Not built in the room yet (answer `NOT_AVAILABLE_YET`): knocks (late joiners are spectators for now),
+3. Not built in the room yet (answer `NOT_AVAILABLE_YET`): knocks (late joiners are spectators for now),
    new code, the host's "mute" (block mic covers it), rematch_ready.
 
 ## Phases

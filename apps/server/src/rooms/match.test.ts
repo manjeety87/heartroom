@@ -20,7 +20,12 @@ describe("prepareMatch", () => {
   it("when players act, then actions are parsed, validated and counted", () => {
     const match = prepareMatch(bingo, CLASSIC)!.start(2, newSeed());
     expect(match.play(0, { type: "dance" })).toEqual({ ok: false, code: "INVALID_MESSAGE" });
-    expect(match.play(0, { type: "call", n: 1 })).toEqual({ ok: false, code: "RULE_VIOLATION" });
+    // A refusal carries the game's reason, which the site turns into copy.
+    expect(match.play(0, { type: "call", n: 1 })).toEqual({
+      ok: false,
+      code: "RULE_VIOLATION",
+      reason: "wrong_phase",
+    });
     expect(match.play(0, { type: "fill", grid: grid(1) })).toEqual({ ok: true });
     expect(match.turnSeq()).toBe(1);
   });

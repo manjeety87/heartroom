@@ -82,6 +82,8 @@
   --duration-ink-draw: 280ms;
   --duration-line-strike: 360ms;
   --duration-reduced-fade: 150ms;
+  /* One Word Guess tile turning over; tiles in a row start 60ms apart (design-direction). */
+  --duration-tile-flip: 320ms;
 
   /* Ink is drawn along an SVG stroke with pathLength="1" and stroke-dasharray="1". */
   --animate-ink-draw: ink-draw var(--duration-ink-draw) var(--ease-out) both;
@@ -96,6 +98,14 @@
   --animate-lift: lift 500ms var(--ease-spring) both;
   /* Reduced motion replaces movement with a short fade. */
   --animate-fade-in: fade-in var(--duration-reduced-fade) linear both;
+  /*
+   * A revealed guess: the tile turns edge-on, shows its mark, turns back. "Shape then colour": the
+   * tile keeps its typed look (tile-face) until it is edge-on at half time, then snaps to its mark.
+   * Reduced motion keeps only the snap, so marks still arrive one tile after another.
+   */
+  --animate-tile-flip: tile-flip var(--duration-tile-flip) var(--ease-move) both;
+  --animate-tile-face: tile-face calc(var(--duration-tile-flip) / 2) steps(1, end) both;
+  --animate-tile-hidden: fade-in calc(var(--duration-tile-flip) / 2) steps(1, end) both;
   /* Duration is set per clock (time left) with an inline animation-duration. */
   --animate-turn-clock: turn-clock 1s linear forwards;
 
@@ -131,6 +141,21 @@
   @keyframes fade-in {
     from {
       opacity: 0;
+    }
+  }
+
+  @keyframes tile-flip {
+    50% {
+      transform: rotateX(90deg);
+    }
+  }
+
+  @keyframes tile-face {
+    from {
+      background-color: transparent;
+      color: var(--color-ink);
+      box-shadow: inset 0 0 0 2px var(--color-pencil);
+      text-decoration-line: none;
     }
   }
 

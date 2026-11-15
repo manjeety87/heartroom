@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { Mark } from "../feedback.ts";
 
 const MARK_WORDS: Readonly<Record<Mark, string>> = {
@@ -11,15 +11,23 @@ const MARK_WORDS: Readonly<Record<Mark, string>> = {
  * One letter. Never colour alone (design-direction › Accessibility): right place = pen fill and a
  * tick notch; in the word = highlighter with an ink ring; not in the word = well fill, struck through.
  */
+/** Tiles in a revealed row start turning this far apart (design-direction › Word Guess). */
+export const FLIP_STAGGER_MS = 60;
+
 export function WordTile({
   letter,
   mark,
   size = "large",
+  revealDelayMs,
 }: {
   readonly letter: string;
   readonly mark?: Mark | undefined;
   readonly size?: "large" | "small";
+  /** Set when this tile's mark has just arrived: it turns over after this delay. */
+  readonly revealDelayMs?: number | undefined;
 }) {
+  const isRevealing = revealDelayMs !== undefined && mark !== undefined;
+  const delay = isRevealing ? { animationDelay: `${String(revealDelayMs)}ms` } : undefined;
   const box = size === "large" ? "size-12 text-title sm:size-14" : "size-7 text-caption";
   const look =
     mark === "correct"
@@ -41,13 +49,21 @@ export function WordTile({
     <span
       role="img"
       aria-label={label}
-      className={`relative grid place-items-center rounded-tile font-display font-extrabold uppercase ${box} ${look}`}
+      style={delay}
+      className={`relative grid place-items-center rounded-tile font-display font-extrabold uppercase ${box} ${look} ${
+        isRevealing
+          ? "[animation:var(--animate-tile-flip),var(--animate-tile-face)] motion-reduce:[animation:var(--animate-tile-face)]"
+          : ""
+      }`}
     >
       {letter}
       {mark === "correct" && (
         <span
           aria-hidden
-          className="absolute top-0.5 right-0.5 size-0 border-t-[6px] border-l-[6px] border-t-on-pen border-l-transparent"
+          style={delay}
+          className={`absolute top-0.5 right-0.5 size-0 border-t-[6px] border-l-[6px] border-t-on-pen border-l-transparent ${
+            isRevealing ? "[animation:var(--animate-tile-hidden)]" : ""
+          }`}
         />
       )}
     </span>
@@ -61,12 +77,15 @@ export function WordRow({
   marks,
   size = "large",
   label,
+  reveal = false,
 }: {
   readonly length: number;
   readonly word?: string;
   readonly marks?: readonly Mark[] | undefined;
   readonly size?: "large" | "small";
   readonly label?: string | undefined;
+  /** The marks just arrived: the tiles turn over one after another. */
+  readonly reveal?: boolean;
 }) {
   return (
     <div
@@ -75,8 +94,53 @@ export function WordRow({
       className={`flex ${size === "large" ? "gap-1.5" : "gap-1"}`}
     >
       {Array.from({ length }, (_, i) => (
-        <WordTile key={i} letter={word[i] ?? ""} mark={marks?.[i]} size={size} />
+        <WordTile
+          key={i}
+          letter={word[i] ?? ""}
+          mark={marks?.[i]}
+          size={size}
+          revealDelayMs={reveal ? i * FLIP_STAGGER_MS : undefined}
+        />
       ))}
+    </div>
+  );
+}
+
+/**
+ * What the tile looks mean, one tap away: three sample tiles with their words. Shown on demand
+ * (it is the same every game), and instantly: a disclosure needs no motion.
+ */
+export function MarksLegend() {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <button
+        type="button"
+        aria-expanded={isOpen}
+        aria-controls="marks-legend"
+        onClick={() => {
+          setIsOpen((open) => !open);
+        }}
+        className="min-h-11 rounded-pill px-3 text-small font-semibold text-pen focus-visible:outline-2 focus-visible:outline-pen"
+      >
+        {isOpen ? "Hide what the tiles mean" : "What do the tiles mean?"}
+      </button>
+      {isOpen && (
+        <ul id="marks-legend" className="flex flex-col gap-2">
+          {(
+            [
+              ["correct", "Right letter, right place"],
+              ["present", "In the word, somewhere else"],
+              ["absent", "Not in the word"],
+            ] as const
+          ).map(([mark, words]) => (
+            <li key={mark} className="flex items-center gap-3">
+              <WordTile letter="a" mark={mark} size="small" />
+              <span className="text-small text-ink">{words}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

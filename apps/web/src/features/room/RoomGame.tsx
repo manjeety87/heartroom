@@ -3,28 +3,15 @@
 import { useMemo } from "react";
 import type { BingoAction, BingoView } from "@heartroom/bingo";
 import { BingoGame } from "@heartroom/bingo/ui";
-import { ERROR_MESSAGES, type ErrorCode, type RoomMessage } from "@heartroom/protocol";
+import type { RoomMessage } from "@heartroom/protocol";
 import { seatColorVar } from "@heartroom/ui";
 import type { WordGuessAction, WordGuessView } from "@heartroom/word-guess";
 import { WordGuessGame } from "@heartroom/word-guess/ui";
 import { useProfile } from "@/lib/profile";
 import { sendHost, sendIntent, useRoom } from "@/lib/room-client/client";
 import { useBingoFeedback } from "@/lib/use-bingo-feedback";
+import { refusalCopy } from "./refusals.ts";
 import { TurnClock } from "./TurnClock.tsx";
-
-/** Copy for refusals of a move, per game; anything else uses the protocol's safe text. */
-const MOVE_REFUSALS: Readonly<Record<string, Partial<Record<ErrorCode, string>>>> = {
-  bingo: {
-    NOT_YOUR_TURN: "Wait for your turn.",
-    STALE_TURN: "The game moved on. Try again.",
-    RULE_VIOLATION: "That move isn’t allowed.",
-  },
-  // The server says only "not allowed"; for a typed word that almost always means "not in the list".
-  "word-guess": {
-    STALE_TURN: "The game moved on. Try again.",
-    RULE_VIOLATION: "That word isn’t in our list. Try another.",
-  },
-};
 
 /** The fields every game's view has, read without knowing which game it is. */
 type AnyView = {
@@ -71,7 +58,7 @@ export function RoomGame({ room, me }: { readonly room: RoomMessage; readonly me
   const status = !isLive
     ? "Reconnecting… your seat is held for a minute."
     : notice !== null
-      ? (MOVE_REFUSALS[room.gameId ?? ""]?.[notice.code] ?? ERROR_MESSAGES[notice.code])
+      ? refusalCopy(room.gameId, notice)
       : isBingo && view.kind === "spectator" && view.phase !== "done"
         ? "You’re watching this game."
         : view.phase === "done" && !isHost

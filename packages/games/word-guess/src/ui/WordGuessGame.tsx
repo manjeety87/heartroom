@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { Button } from "@heartroom/ui";
 import type { WordGuessAction } from "../rules.ts";
 import type { WordGuessSeatView, WordGuessSpectatorView, WordGuessView } from "../view.ts";
-import { GameKeyboard, letterMarks, WordRow } from "./tiles.tsx";
+import { GameKeyboard, letterMarks, MarksLegend, WordRow } from "./tiles.tsx";
 
 export type WordGuessPlayer = { readonly name: string; readonly color: string };
 
@@ -82,6 +82,8 @@ function SeatScreen({
   const row = isChoosing ? -1 : view.yourGuesses.length;
   const { letters, onLetter, onBackspace } = useDraft(row, view.length);
   const [isGivingUp, setIsGivingUp] = useState(false);
+  // Guesses already on screen when this view first showed (a refresh) don't flip again.
+  const [shownGuesses] = useState(view.yourGuesses.length);
   const onEnter = useCallback(() => {
     if (letters.length !== view.length) return;
     onIntent(isChoosing ? { type: "set", word: letters } : { type: "guess", word: letters });
@@ -132,14 +134,16 @@ function SeatScreen({
         <div className="flex flex-col gap-1.5">
           {Array.from({ length: view.maxGuesses }, (_, i) => {
             const guess = view.yourGuesses[i];
+            // Its own key, so a sent guess mounts a new row and its tiles turn over once.
             if (guess)
               return (
                 <WordRow
-                  key={i}
+                  key={`guess-${String(i)}`}
                   length={view.length}
                   word={guess.word}
                   marks={guess.marks}
                   label={`Guess ${String(i + 1)}`}
+                  reveal={i >= shownGuesses}
                 />
               );
             return (
@@ -203,6 +207,8 @@ function SeatScreen({
               Give up…
             </Button>
           )}
+          {/* Under the keyboard, so opening it never moves the keys. */}
+          <MarksLegend />
         </>
       )}
       <section
@@ -309,6 +315,7 @@ function SpectatorScreen({
           </section>
         ))}
       </div>
+      {view.phase === "guessing" && <MarksLegend />}
       {view.phase === "done" && onRematch && (
         <Button onClick={onRematch} className="self-center">
           Rematch
