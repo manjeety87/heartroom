@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import {
   bingoConfigSchema,
   CLASSIC,
+  lineCountFor,
   PRESETS,
   TIMER_MODES,
   type BingoConfig,
@@ -19,6 +21,7 @@ import {
   type WordGuessConfig,
 } from "@heartroom/word-guess";
 import { sendHost } from "@/lib/room-client/client";
+import { CUSTOM_SIZES, withGrid } from "./bingo-custom.ts";
 import { GAME_LIST, isGameId, playersLabel, type GameId } from "@/features/games/catalog";
 
 /**
@@ -145,10 +148,18 @@ export function GamePicker({
   );
 }
 
+const SIZE_OPTIONS = CUSTOM_SIZES.map((size) => ({
+  value: String(size),
+  label: `${String(size)}×${String(size)}`,
+}));
+
 export function BingoSettings({ room }: { readonly room: RoomMessage }) {
   const parsed = bingoConfigSchema.safeParse(room.gameConfig);
   const config = parsed.success ? parsed.data : null;
   const chosen = config === null ? null : presetOf(config);
+  // Custom stays open while the host tweaks it, even when it happens to match a preset.
+  const [wantsCustom, setWantsCustom] = useState(false);
+  const isCustom = config !== null && (chosen === null || wantsCustom);
   return (
     <>
       <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Grid">
@@ -157,16 +168,53 @@ export function BingoSettings({ room }: { readonly room: RoomMessage }) {
             key={id}
             label={PRESETS[id].label}
             hint={`${String(PRESETS[id].linesToWin)} lines to win`}
-            isChecked={chosen === id}
+            isChecked={!isCustom && chosen === id}
             disabled={config === null}
             onChoose={() => {
               if (config === null) return;
+              setWantsCustom(false);
               const { size, linesToWin } = PRESETS[id];
               sendBingo({ ...config, size, linesToWin });
             }}
           />
         ))}
+        <Choice
+          label="Custom"
+          hint={
+            isCustom
+              ? `${String(config.size)}×${String(config.size)}, ${String(config.linesToWin)} lines`
+              : "Your own size and lines"
+          }
+          isChecked={isCustom}
+          disabled={config === null}
+          onChoose={() => {
+            setWantsCustom(true);
+          }}
+        />
       </div>
+      {isCustom && (
+        <div className="flex flex-col gap-3">
+          <SegmentedControl
+            label="Grid size"
+            options={SIZE_OPTIONS}
+            value={String(config.size)}
+            onChange={(size) => {
+              sendBingo(withGrid(config, { size: Number(size) }));
+            }}
+          />
+          <LinesStepper
+            value={config.linesToWin}
+            max={lineCountFor(config.size)}
+            onChange={(linesToWin) => {
+              sendBingo(withGrid(config, { linesToWin }));
+            }}
+          />
+          <p className="text-small text-pencil">
+            A {config.size}×{config.size} grid has {lineCountFor(config.size)} lines in all. Only
+            Classic 5×5 counts for the leaderboard.
+          </p>
+        </div>
+      )}
       {config !== null && (
         <div className="flex flex-col gap-2">
           <SegmentedControl
@@ -181,6 +229,55 @@ export function BingoSettings({ room }: { readonly room: RoomMessage }) {
         </div>
       )}
     </>
+  );
+}
+
+/** "Lines to win: − 5 +". Buttons stop at 1 and at the most the grid has. */
+function LinesStepper({
+  value,
+  max,
+  onChange,
+}: {
+  readonly value: number;
+  readonly max: number;
+  readonly onChange: (value: number) => void;
+}) {
+  const step =
+    "grid size-11 place-items-center rounded-pill bg-well text-title font-semibold text-ink transition-transform duration-(--duration-press) ease-out active:scale-97 focus-visible:outline-2 focus-visible:outline-pen disabled:opacity-40 motion-reduce:active:scale-100";
+  return (
+    <div role="group" aria-labelledby="lines-label" className="flex items-center gap-3">
+      <span id="lines-label" className="flex-1 text-body text-ink">
+        Lines to win
+      </span>
+      <button
+        type="button"
+        aria-label="Fewer lines"
+        disabled={value <= 1}
+        onClick={() => {
+          onChange(value - 1);
+        }}
+        className={step}
+      >
+        −
+      </button>
+      <output
+        aria-live="polite"
+        className="w-8 text-center text-title font-bold tabular-nums text-ink"
+      >
+        {value}
+      </output>
+      <button
+        type="button"
+        aria-label="More lines"
+        disabled={value >= max}
+        onClick={() => {
+          onChange(value + 1);
+        }}
+        className={step}
+      >
+        +
+      </button>
+    </div>
   );
 }
 
