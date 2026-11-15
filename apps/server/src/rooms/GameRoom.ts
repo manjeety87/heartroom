@@ -27,7 +27,7 @@ import {
   type Sealer,
 } from "../checkpoint.ts";
 import type { Logger } from "../logger.ts";
-import type { MatchToRecord, RoomEventType, RoomStore } from "../persistence/store.ts";
+import type { RoomEventType, RoomStore } from "../persistence/store.ts";
 import { newRoomCode } from "./codes.ts";
 import { msUntilDue, trackDeadline, type DeadlineClock } from "./deadline.ts";
 import { prepareMatch, type Match, type MatchSetup } from "./match.ts";
