@@ -2,7 +2,7 @@
 
 _Update this file at the end of every working session (any agent, any device)._
 
-**Last updated:** 2026-11-14 (Phase 7: Admin)
+**Last updated:** 2026-11-15 (game hub)
 **Phase:** Phases 2–7 code done (owner checks pending, see the owner to-do) → next: Word Guess polish
 and the gaps to close before launch.
 
@@ -150,6 +150,14 @@ and the gaps to close before launch.
       flipped to admin, then back): guest → 404 for the page and both APIs; live room listed,
       Inspect drew the spectator board, Close (second tap) ended it; Games tab; 375 px fits.
       Real Google admin not tried. 372 tests.
+- [x] **Game hub** (2026-11-15, owner feedback: the room-first flow and its game cards felt like
+      confusing tabs): home lists the games as notebook-page cards (accent margin line, pitch, players,
+      a drawn preview) plus "Have a code?"; `/games/<id>` has how to play, Play with friends (the room
+      starts with that game) and Play alone (vs Computer, Bingo only). Lobby: the game is the heading,
+      "Change game" opens the picker. One catalog (`features/games/catalog.ts`) and typed per-game
+      records, so a new game can't half-exist. `/play` redirects home; nav says Games. Checked in the
+      browser: home, game page, creating a Word Guess room lands with Word Guess picked (found and
+      fixed: React's double effect in dev picked Bingo), Change game, 360 px fits. 375 tests.
 
 ## Owner to-do (only the owner can do these; tick them here when done)
 
@@ -187,6 +195,8 @@ and the gaps to close before launch.
       rematch. Check the tiles are readable in light and dark themes and the keyboard fits a phone.
 - [ ] **Leaderboard on a phone** (after Google sign-in and some ranked games): filters, your own row at
       the bottom, long names, light and dark.
+- [ ] **New home on a phone:** home → tap a game → its page → Create room → the lobby already has
+      that game. Try both games, "Change game" in the lobby, and "Have a code?" from home.
 - [ ] **Rest of the redesign on a phone:** Settings (name, colour, every theme light/dark, Make your own,
       text size), 5×5 and 8×8 (two-tap call), results, History step-through, sounds and vibration.
 - [ ] **Make yourself admin** (after Google sign-in works): stop nothing, run

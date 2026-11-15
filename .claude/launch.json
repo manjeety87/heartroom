@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "db",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@heartroom/db", "dev"],
+      "port": 5433
+    },
+    {
       "name": "web",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@heartroom/web", "exec", "next", "dev", "--port", "3100"],

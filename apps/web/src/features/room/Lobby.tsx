@@ -4,14 +4,9 @@ import { useEffect, useState } from "react";
 import type { RoomMessage } from "@heartroom/protocol";
 import { Button, Switch, seatColorVar } from "@heartroom/ui";
 import { sendHost } from "@/lib/room-client/client";
-import {
-  BingoSettings,
-  chooseGame,
-  describeSettings,
-  GamePicker,
-  WordGuessSettings,
-} from "./GameSettings.tsx";
-import { gameInfo } from "./games.ts";
+import { GAME_IDS, gameInfo, isGameId } from "@/features/games/catalog";
+import { firstGameFor, forgetFirstGame } from "./first-game.ts";
+import { chooseGame, describeSettings, GAME_SETTINGS, GamePicker } from "./GameSettings.tsx";
 
 /** Who's here and, for the host, the game, the lock and Start. Also sets up the next game. */
 export function Lobby({
@@ -30,17 +25,26 @@ export function Lobby({
   const game = gameInfo(room.gameId);
   const settings = describeSettings(room);
 
-  // A new room has no game chosen; the host's screen picks Bingo straight away.
+  const [isChangingGame, setIsChangingGame] = useState(false);
+
+  // A new room has no game yet: the host's screen sends the one picked on the game's page.
   useEffect(() => {
-    if (isHost && room.gameId === null) chooseGame("bingo");
-  }, [isHost, room.gameId]);
+    if (!isHost) return;
+    if (room.gameId === null) chooseGame(firstGameFor(room.code) ?? GAME_IDS[0]);
+    else forgetFirstGame();
+  }, [isHost, room.gameId, room.code]);
 
   if (!isHost) {
     return (
       <div className="flex flex-col gap-6">
         <PlayerList room={room} me={me} isHost={false} />
         <div aria-live="polite" className="flex flex-col gap-1">
-          {settings !== null && <p className="text-body font-semibold text-ink">{settings}</p>}
+          {game !== null && (
+            <p className="text-body font-semibold text-ink">
+              {game.name}
+              {settings !== null && <span className="font-normal text-pencil"> · {settings}</span>}
+            </p>
+          )}
           <p className="text-body text-pencil">
             Waiting for {host?.nickname ?? "the host"} to start the {isBetweenGames ? "next " : ""}
             game…
@@ -51,20 +55,39 @@ export function Lobby({
   }
 
   const seated = room.seats.length;
-  const fits = game !== null && present >= game.min && seated <= game.max;
+  const fits = game !== null && present >= game.minPlayers && seated <= game.maxPlayers;
+  const Settings = isGameId(room.gameId) ? GAME_SETTINGS[room.gameId] : null;
   return (
     <div className="flex flex-col gap-6">
       <PlayerList room={room} me={me} isHost />
       <section aria-labelledby="game-settings" className="flex flex-col gap-4">
-        <h2
-          id="game-settings"
-          className="font-display text-title font-bold tracking-tight text-ink"
-        >
-          {isBetweenGames ? "Next game" : "Game"}
-        </h2>
-        <GamePicker room={room} />
-        {room.gameId === "bingo" && <BingoSettings room={room} />}
-        {room.gameId === "word-guess" && <WordGuessSettings room={room} />}
+        <div className="flex items-end justify-between gap-3">
+          <h2
+            id="game-settings"
+            className="font-display text-title font-bold tracking-tight text-ink"
+          >
+            {isBetweenGames ? "Next game: " : ""}
+            {game?.name ?? "Pick a game"}
+          </h2>
+          <Button
+            variant="quiet"
+            aria-expanded={isChangingGame}
+            onClick={() => {
+              setIsChangingGame((open) => !open);
+            }}
+          >
+            {isChangingGame ? "Done" : "Change game"}
+          </Button>
+        </div>
+        {isChangingGame && (
+          <GamePicker
+            room={room}
+            onPicked={() => {
+              setIsChangingGame(false);
+            }}
+          />
+        )}
+        {Settings !== null && <Settings room={room} />}
         <Switch
           label="Lock the room"
           description="Nobody new can join. People already here can still come back."
@@ -73,9 +96,9 @@ export function Lobby({
             sendHost({ type: "host", kind: isLocked ? "lock" : "unlock" });
           }}
         />
-        {game !== null && seated > game.max && (
+        {game !== null && seated > game.maxPlayers && (
           <p className="text-small text-pencil">
-            {game.label} is for {game.max} players. Remove someone, or pick another game.
+            {game.name} is for {game.maxPlayers} players. Remove someone, or pick another game.
           </p>
         )}
         {!isBetweenGames && (
@@ -89,9 +112,10 @@ export function Lobby({
             >
               Start game
             </Button>
-            {game !== null && present < game.min && (
+            {game !== null && present < game.minPlayers && (
               <p className="text-small text-pencil">
-                {game.label} needs at least {game.min} players. Invite someone with the code above.
+                {game.name} needs at least {game.minPlayers} players. Invite someone with the code
+                above.
               </p>
             )}
           </>
@@ -146,7 +170,7 @@ function PlayerList({
       <h2 id="players" className="font-display text-title font-bold tracking-tight text-ink">
         Players{" "}
         <span className="text-pencil">
-          {room.seats.length} / {gameInfo(room.gameId)?.max ?? 6}
+          {room.seats.length} / {gameInfo(room.gameId)?.maxPlayers ?? 6}
         </span>
       </h2>
       <ul className="flex flex-col">

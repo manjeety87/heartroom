@@ -64,7 +64,7 @@ export function OnlineGames() {
             Games you play in a room with friends show up here, with who won.
           </p>
           <Link
-            href="/play"
+            href="/"
             className="inline-flex min-h-11 items-center rounded-pill bg-well px-5 font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pen"
           >
             Play with friends

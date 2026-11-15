@@ -1,24 +1,18 @@
-import Link from "next/link";
+import { GameShelf } from "@/features/games/GameShelf";
+import { JoinByCode } from "@/features/games/JoinByCode";
 
-export default function LandingPage() {
+/** Home: pick a game, or go straight into a friend's room with its code. */
+export default function HomePage() {
   return (
-    <main className="mx-auto flex min-h-svh max-w-xl flex-col justify-center gap-8 px-gutter py-12">
-      <h1 className="font-display text-display font-extrabold text-ink">Heartroom</h1>
-      <p className="text-title text-pencil">Your notebook Bingo, now with voice.</p>
+    <main className="mx-auto flex max-w-2xl flex-col gap-10 px-gutter py-8 sm:py-12">
       <div className="flex flex-col gap-3">
-        <Link
-          href="/play"
-          className="inline-flex min-h-11 items-center justify-center self-start rounded-pill bg-pen px-6 text-body font-semibold text-on-pen focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pen"
-        >
-          Play with friends
-        </Link>
-        <Link
-          href="/play/bingo"
-          className="inline-flex min-h-11 items-center justify-center self-start rounded-pill bg-well px-6 text-body font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pen"
-        >
-          Play vs Computer
-        </Link>
+        <h1 className="font-display text-display font-extrabold text-ink">Heartroom</h1>
+        <p className="max-w-md text-title text-pencil">
+          Short games with your friends, and you can talk while you play.
+        </p>
       </div>
+      <GameShelf />
+      <JoinByCode />
     </main>
   );
 }

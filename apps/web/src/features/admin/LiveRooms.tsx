@@ -3,7 +3,7 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { liveRoomsResponse, type LiveRoom, type LiveRoomsResponse } from "@heartroom/protocol";
 import { Button, seatColorVar } from "@heartroom/ui";
-import { gameInfo } from "@/features/room/games";
+import { gameInfo } from "@/features/games/catalog";
 import { formatDuration, formatPercent } from "./format.ts";
 import { RoomInspector } from "./RoomInspector.tsx";
 
@@ -77,7 +77,7 @@ export function LiveRooms() {
     }
     setNotice(
       answer?.status === 204
-        ? `Room ${code} is closed. Everyone in it was sent back to Play.`
+        ? `Room ${code} is closed. Everyone in it was sent back to the home page.`
         : answer?.status === 409
           ? `Room ${code} had already closed.`
           : `Couldn’t close ${code}. The game server didn’t answer; try again.`,
@@ -203,7 +203,7 @@ function RoomRow({
   readonly onCancelClose: () => void;
   readonly onClose: () => void;
 }) {
-  const game = gameInfo(room.gameId)?.label ?? "No game picked";
+  const game = gameInfo(room.gameId)?.name ?? "No game picked";
   return (
     <tr className="border-b border-line align-top text-ink">
       <td className="py-2 pr-3">

@@ -1,8 +1,8 @@
-import { gameInfo } from "@/features/room/games";
+import { gameInfo } from "@/features/games/catalog";
 import type { AdminStats } from "@/lib/admin/query";
 import { formatCount, formatPercent } from "./format.ts";
 
-const gameName = (id: string) => gameInfo(id)?.label ?? id;
+const gameName = (id: string) => gameInfo(id)?.name ?? id;
 const th = "py-2 pr-3 font-semibold";
 const num = "py-2 pr-3 text-right tabular-nums";
 

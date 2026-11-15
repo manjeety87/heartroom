@@ -129,7 +129,7 @@ function LeaveButton({ isMidGame }: { readonly isMidGame: boolean }) {
   const [isConfirming, setIsConfirming] = useState(false);
   const leave = () => {
     void leaveRoom().then(() => {
-      router.push("/play");
+      router.push("/");
     });
   };
   if (isMidGame && isConfirming) {
@@ -195,10 +195,10 @@ function Closed({
           </Button>
         )}
         <Link
-          href="/play"
+          href="/"
           className="inline-flex min-h-11 items-center justify-center rounded-pill bg-well px-5 text-body font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pen"
         >
-          Back to Play
+          Back to games
         </Link>
       </div>
     </Section>

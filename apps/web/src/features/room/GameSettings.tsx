@@ -19,7 +19,7 @@ import {
   type WordGuessConfig,
 } from "@heartroom/word-guess";
 import { sendHost } from "@/lib/room-client/client";
-import { ROOM_GAMES, type RoomGameId } from "./games.ts";
+import { GAME_LIST, isGameId, playersLabel, type GameId } from "@/features/games/catalog";
 
 /**
  * The games a room can play and each one's settings, as the lobby shows them. The server checks
@@ -41,10 +41,10 @@ const presetOf = (config: BingoConfig): PresetId | null =>
     (id) => PRESETS[id].size === config.size && PRESETS[id].linesToWin === config.linesToWin,
   ) ?? null;
 
-/** The room's chosen settings, in words: "Classic 5×5 · Fast", "Word Guess · 5 letters, 5 guesses". */
-export function describeSettings(room: RoomMessage): string | null {
-  if (room.gameId === "bingo") {
-    const parsed = bingoConfigSchema.safeParse(room.gameConfig);
+/** Each game's settings in words: "Classic 5×5 · Fast", "5 letters, 5 guesses". Null if invalid. */
+const DESCRIBE: Readonly<Record<GameId, (config: unknown) => string | null>> = {
+  bingo: (raw) => {
+    const parsed = bingoConfigSchema.safeParse(raw);
     if (!parsed.success) return null;
     const config = parsed.data;
     const preset = presetOf(config);
@@ -52,20 +52,32 @@ export function describeSettings(room: RoomMessage): string | null {
       preset === null
         ? `${String(config.size)}×${String(config.size)}, ${String(config.linesToWin)} lines`
         : PRESETS[preset].label;
-    return `Bingo · ${grid} · ${TIMERS[config.timer].label}`;
-  }
-  if (room.gameId === "word-guess") {
-    const parsed = wordGuessConfigSchema.safeParse(room.gameConfig);
+    return `${grid} · ${TIMERS[config.timer].label}`;
+  },
+  "word-guess": (raw) => {
+    const parsed = wordGuessConfigSchema.safeParse(raw);
     if (!parsed.success) return null;
-    return `Word Guess · ${String(parsed.data.length)} letters, ${String(parsed.data.maxGuesses)} guesses`;
-  }
-  return null;
+    return `${String(parsed.data.length)} letters, ${String(parsed.data.maxGuesses)} guesses`;
+  },
+};
+
+/** The room's chosen settings, in words, without the game's name. */
+export function describeSettings(room: RoomMessage): string | null {
+  return isGameId(room.gameId) ? DESCRIBE[room.gameId](room.gameConfig) : null;
 }
 
-/** Picking a game starts from its default settings. */
-export function chooseGame(id: RoomGameId): void {
-  if (id === "bingo") sendBingo(CLASSIC);
-  else sendWordGuess(CLASSIC_WORD_GUESS);
+/** Picking a game starts from its classic settings. */
+const CHOOSE: Readonly<Record<GameId, () => void>> = {
+  bingo: () => {
+    sendBingo(CLASSIC);
+  },
+  "word-guess": () => {
+    sendWordGuess(CLASSIC_WORD_GUESS);
+  },
+};
+
+export function chooseGame(id: GameId): void {
+  CHOOSE[id]();
 }
 
 function sendBingo(config: BingoConfig) {
@@ -108,17 +120,24 @@ function Choice({
   );
 }
 
-export function GamePicker({ room }: { readonly room: RoomMessage }) {
+export function GamePicker({
+  room,
+  onPicked,
+}: {
+  readonly room: RoomMessage;
+  readonly onPicked: () => void;
+}) {
   return (
     <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Game">
-      {ROOM_GAMES.map((game) => (
+      {GAME_LIST.map((game) => (
         <Choice
           key={game.id}
-          label={game.label}
-          hint={game.hint}
+          label={game.name}
+          hint={playersLabel(game)}
           isChecked={room.gameId === game.id}
           onChoose={() => {
             if (room.gameId !== game.id) chooseGame(game.id);
+            onPicked();
           }}
         />
       ))}
@@ -204,3 +223,11 @@ export function WordGuessSettings({ room }: { readonly room: RoomMessage }) {
     </div>
   );
 }
+
+/** The host's settings panel per game; a new game must add its own here (the type requires it). */
+export const GAME_SETTINGS: Readonly<
+  Record<GameId, (props: { readonly room: RoomMessage }) => React.ReactNode>
+> = {
+  bingo: BingoSettings,
+  "word-guess": WordGuessSettings,
+};

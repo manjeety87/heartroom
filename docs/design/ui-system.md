@@ -116,6 +116,23 @@ Finished games are stored on the device as `(config, seed, actions, players)` an
 engine's `replay()`, so History shows what really happened, step by step. Online games will use the
 same record from the server (Phase 4).
 
+## Home and game pages (2026-11-15)
+
+Home (`/`) is the hub: the wordmark, one sentence, `GameShelf` and `JoinByCode`. Each game is a
+"notebook page": a `bg-sheet` card whose left margin line (8px) is the game's accent, its name at h2,
+the pitch, the player count and a small preview drawn from the game's own pieces (`GamePreview`,
+hidden under 420px). The whole card is one link to `/games/<id>`, which has, in this order: the
+game's name with a short accent line, **Play with friends** (name + 18+ → a room that already has
+this game; `rememberFirstGame` hands it to the lobby), **Play alone** (only when `vsComputerHref`
+is set) and **How to play** (a real `<ol>`, since it is a sequence). In the lobby the chosen game is
+the heading; switching games sits behind **Change game**. The nav's first item is **Games** (`/`);
+nav links use `px-1.5` and `gap-0.5` below `sm` so four items fit 360px. Motion: press scale and
+a hover tone only (seen many times a day, so no page-load animation).
+
+Adding a game to the site: an entry in `features/games/catalog.ts` (its id must equal the module's;
+a test checks), then TypeScript asks for its settings (`GAME_SETTINGS`, `DESCRIBE`, `CHOOSE` in
+`GameSettings.tsx`) and its preview (`GAME_PREVIEWS`). Existing games are untouched.
+
 ## Leaderboard
 
 `/leaderboard` renders on the server. `FilterBar` is three `SegmentedControl`s (game · time ·
@@ -123,7 +140,7 @@ players, the last only for Bingo) that push a new URL in a transition, so the ol
 instead of jumping to a skeleton. `LeaderboardTable` uses a real `<table>` (rank, player, wins,
 win rate; games from `sm`), `tabular-nums`, your own row on `bg-well` with "(you)", and a sticky
 bar at the bottom with your rank, what you still need, or "Sign in". The nav calls it **Ranks**
-(four items must fit 375 px; nav items use `px-2` below `sm`).
+(four items must fit 360 px; see Home and game pages).
 
 ## Patterns to copy
 
