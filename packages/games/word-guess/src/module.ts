@@ -1,7 +1,7 @@
 import { defineGame } from "@heartroom/engine";
 import { isClassicWordGuess, SEATS, wordGuessConfigSchema } from "./config.ts";
 import { createRules, result, setup, wordGuessActionSchema, type WordLists } from "./rules.ts";
-import { perturbHidden, view } from "./view.ts";
+import { perturbHidden, view, wordGuessViewSchema } from "./view.ts";
 
 /**
  * Word Guess as a game module. Built from word lists (server: `@heartroom/word-guess/words`), so the
@@ -16,6 +16,7 @@ export function createWordGuess(words: WordLists) {
     configSchema: wordGuessConfigSchema,
     isRanked: (config) => isClassicWordGuess(config),
     actionSchema: wordGuessActionSchema,
+    viewSchema: wordGuessViewSchema,
     setup: (config, seats) => setup(config, seats),
     validate: rules.validate,
     apply: rules.apply,

@@ -44,7 +44,8 @@ export type RoomState = {
   readonly me: string | null;
   readonly room: RoomMessage | null;
   /** The latest view. Views are full snapshots, so only the newest one matters. */
-  readonly game: { readonly seq: number; readonly view: unknown } | null;
+  /** The latest view of the current/last game, not yet checked against the game's schema. */
+  readonly game: { readonly seq: number; readonly gameId: string; readonly view: unknown } | null;
   readonly outbox: readonly PendingIntent[];
   /** The last refusal from the server; `id` changes so the same code twice still shows twice. */
   /** The server's last refusal; `reason` is the game's key for a refused move, when it gave one. */
@@ -99,7 +100,7 @@ export function applyServerMessage(
       if (state.game !== null && message.seq < state.game.seq) return state;
       return {
         ...state,
-        game: { seq: message.seq, view: message.view },
+        game: { seq: message.seq, gameId: message.gameId, view: message.view },
         // Once the game moves on, an earlier refusal is old news.
         ...(state.game !== null && message.seq > state.game.seq && { notice: null }),
       };

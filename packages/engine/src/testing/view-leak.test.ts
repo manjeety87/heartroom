@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import { defineGame } from "../module.ts";
 import { assertNoLeak, canonicalJson, LeakError } from "./view-leak.ts";
 import { hiddenNumber, type HiddenNumberAction, type HiddenNumberState } from "./hidden-number.ts";
+
+/** Lets any view through, so a test reaches the perturbation check behind the schema check. */
+const anyView = z.custom<never>(() => true);
 
 const scenarios = [
   { name: "classic", config: { maxNumber: 10 }, seats: 2 },
@@ -16,6 +20,7 @@ describe("assertNoLeak", () => {
   it("when a view exposes another seat's secret, then it throws a LeakError", () => {
     const leaky = defineGame({
       ...hiddenNumber,
+      viewSchema: anyView,
       view: (state, viewer) => ({
         ...hiddenNumber.view(state, viewer),
         opponent: state.secrets[1],
@@ -26,9 +31,18 @@ describe("assertNoLeak", () => {
     );
   });
 
+  it("when a view has a field its viewSchema doesn't name, then it throws", () => {
+    const extra = defineGame({
+      ...hiddenNumber,
+      view: (state, viewer) => ({ ...hiddenNumber.view(state, viewer), debug: "x" }),
+    });
+    expect(() => assertNoLeak(extra, { scenarios })).toThrow(/doesn't match viewSchema/);
+  });
+
   it("when a view leaks only a derived fact (is it even?), then it still throws", () => {
     const leaky = defineGame({
       ...hiddenNumber,
+      viewSchema: anyView,
       view: (state, viewer) => ({
         ...hiddenNumber.view(state, viewer),
         hint: state.secrets[1] % 2 === 0,

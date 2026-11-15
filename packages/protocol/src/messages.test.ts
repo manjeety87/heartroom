@@ -45,7 +45,7 @@ describe("serverMessage", () => {
 
   it.each([
     room,
-    { type: "game", seq: 4, view: { anything: true } },
+    { type: "game", gameId: "bingo", seq: 4, view: { anything: true } },
     { type: "ack", clientActionId: "a1" },
     { type: "error", code: "NOT_YOUR_TURN", message: ERROR_MESSAGES.NOT_YOUR_TURN },
     { type: "voice_token", token: "t", url: "wss://voice.example.com" },

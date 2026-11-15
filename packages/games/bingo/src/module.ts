@@ -9,7 +9,7 @@ import {
   setup,
   validate,
 } from "./rules.ts";
-import { perturbHidden, view } from "./view.ts";
+import { bingoViewSchema, perturbHidden, view } from "./view.ts";
 
 export const bingo = defineGame({
   id: "bingo",
@@ -18,6 +18,7 @@ export const bingo = defineGame({
   configSchema: bingoConfigSchema,
   isRanked: (config) => isClassic(config),
   actionSchema: bingoActionSchema,
+  viewSchema: bingoViewSchema,
   setup: (config, seats) => setup(config, seats),
   validate,
   apply,

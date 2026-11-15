@@ -21,5 +21,11 @@ export {
   type BingoPhase,
   type BingoState,
 } from "./rules.ts";
-export type { BingoPublicView, BingoSeatView, BingoSpectatorView, BingoView } from "./view.ts";
+export {
+  bingoViewSchema,
+  type BingoPublicView,
+  type BingoSeatView,
+  type BingoSpectatorView,
+  type BingoView,
+} from "./view.ts";
 export { BOT_LEVELS, chooseCall, fillGrid, type BotLevel } from "./bot.ts";

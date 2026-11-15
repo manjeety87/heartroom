@@ -183,6 +183,9 @@ export const roomMessage = z.strictObject({
 export const gameMessage = z.strictObject({
   type: z.literal("game"),
   seq,
+  /** The game this view belongs to: the lobby may already show the next game's choice. */
+  gameId: z.string().regex(/^[a-z0-9-]{1,40}$/),
+  /** Checked by the site against that game's `viewSchema` before anything is drawn. */
   view: z.unknown(),
 });
 

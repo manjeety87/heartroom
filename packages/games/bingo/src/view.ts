@@ -1,5 +1,6 @@
 import type { Rng, Viewer } from "@heartroom/engine";
-import type { TimerMode } from "./config.ts";
+import { z, type ZodType } from "zod";
+import { TIMER_MODES, type TimerMode } from "./config.ts";
 import type { BingoPhase, BingoState } from "./rules.ts";
 
 /** What everyone may see: no grid except, once the game is over, all of them. */
@@ -35,6 +36,42 @@ export type BingoSeatView = BingoPublicView & {
 export type BingoSpectatorView = BingoPublicView & { readonly kind: "spectator" };
 
 export type BingoView = BingoSeatView | BingoSpectatorView;
+
+const seatIndex = z.number().int().min(0);
+const cell = z.number().int().min(1).nullable();
+
+/** Exactly the fields above, nothing else (engine › viewSchema). */
+const publicFields = {
+  size: z.number().int(),
+  linesToWin: z.number().int(),
+  timer: z.enum(TIMER_MODES),
+  seats: z.number().int(),
+  phase: z.enum(["setup", "playing", "done"]),
+  ready: z.array(z.boolean()),
+  called: z.array(z.number().int()),
+  callers: z.array(seatIndex),
+  turn: seatIndex.nullable(),
+  nudged: z.boolean(),
+  lineCounts: z.array(z.number().int().min(0)),
+  winners: z.array(seatIndex),
+  reveal: z
+    .strictObject({
+      grids: z.array(z.array(cell)),
+      lines: z.array(z.array(z.number().int().min(0))),
+    })
+    .nullable(),
+};
+
+export const bingoViewSchema: ZodType<BingoView> = z.discriminatedUnion("kind", [
+  z.strictObject({
+    ...publicFields,
+    kind: z.literal("seat"),
+    you: seatIndex,
+    grid: z.array(cell),
+    yourLines: z.array(z.number().int().min(0)),
+  }),
+  z.strictObject({ ...publicFields, kind: z.literal("spectator") }),
+]);
 
 export function view(state: BingoState, viewer: Viewer): BingoView {
   const isOver = state.phase === "done";

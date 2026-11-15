@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z, type ZodType } from "zod";
 import { defineGame, type Viewer } from "../module.ts";
 
 /**
@@ -41,6 +41,21 @@ export type HiddenNumberView = {
   readonly reveal: readonly number[] | null;
 };
 
+const viewSchema: ZodType<HiddenNumberView> = z.strictObject({
+  you: z.number().int().nullable(),
+  yourSecret: z.number().int().nullable(),
+  turn: z.number().int().nullable(),
+  guesses: z.array(
+    z.strictObject({
+      seat: z.number().int(),
+      value: z.number().int(),
+      feedback: z.enum(["higher", "lower", "correct"]),
+    }),
+  ),
+  winner: z.number().int().nullable(),
+  reveal: z.array(z.number().int()).nullable(),
+});
+
 const other = (seat: number): number => 1 - seat;
 
 function guessedBy(state: HiddenNumberState, seat: number): Set<number> {
@@ -53,6 +68,7 @@ export const hiddenNumber = defineGame({
   players: { min: 2, max: 2 },
   configSchema,
   actionSchema,
+  viewSchema,
   isRanked: () => false,
 
   setup(config: HiddenNumberConfig, seats, rng): HiddenNumberState {

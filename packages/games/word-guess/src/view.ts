@@ -1,4 +1,5 @@
 import type { Rng, Viewer } from "@heartroom/engine";
+import { z, type ZodType } from "zod";
 import type { Mark } from "./feedback.ts";
 import {
   otherSeat,
@@ -49,6 +50,41 @@ export type WordGuessSpectatorView = {
 };
 
 export type WordGuessView = WordGuessSeatView | WordGuessSpectatorView;
+
+const phase = z.enum(["setup", "guessing", "done"]);
+const word = z.string().regex(/^[a-z]*$/);
+const row = z.strictObject({
+  word,
+  marks: z.array(z.enum(["correct", "present", "absent"])),
+});
+
+/** Exactly the fields above, nothing else (engine › viewSchema). */
+export const wordGuessViewSchema: ZodType<WordGuessView> = z.discriminatedUnion("kind", [
+  z.strictObject({
+    kind: z.literal("seat"),
+    phase,
+    length: z.number().int(),
+    maxGuesses: z.number().int(),
+    you: z.number().int().min(0),
+    yourSecret: word.nullable(),
+    theyHaveSet: z.boolean(),
+    yourGuesses: z.array(row),
+    theirGuesses: z.array(row),
+    youFinished: z.boolean(),
+    theyFinished: z.boolean(),
+    theirSecret: word.nullable(),
+  }),
+  z.strictObject({
+    kind: z.literal("spectator"),
+    phase,
+    length: z.number().int(),
+    maxGuesses: z.number().int(),
+    hasSet: z.array(z.boolean()),
+    rows: z.array(z.array(row)),
+    finished: z.array(z.boolean()),
+    secrets: z.array(word.nullable()).nullable(),
+  }),
+]);
 
 const copyRows = (rows: readonly GuessRow[] | undefined, showWords: boolean): Row[] =>
   (rows ?? []).map((r) => ({ word: showWords ? r.word : "", marks: [...r.marks] }));

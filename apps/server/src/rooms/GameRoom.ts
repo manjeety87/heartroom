@@ -792,6 +792,7 @@ export function createGameRoom(deps: GameRoomDeps) {
       if (this.match === null || member === undefined) return;
       client.send("game", {
         type: "game",
+        gameId: this.match.gameId,
         seq: this.match.turnSeq(),
         view: this.match.view(this.viewerFor(member)),
       });

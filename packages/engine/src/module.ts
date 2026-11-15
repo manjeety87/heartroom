@@ -71,6 +71,12 @@ export type GameModule<Config, State, Action, View extends Json> = {
   nextDeadline(state: State): Deadline | null;
   /** What the server plays for `seat` when its deadline passes. Must be valid for that state. */
   autoAction(state: State, seat: number, rng: Rng): Action;
+  /**
+   * The exact shape of every view (strict objects: no field it doesn't name). `assertNoLeak` checks
+   * each view against it, so a field added to a view by accident fails the game's tests, and the
+   * browser parses every view it receives with it before drawing anything.
+   */
+  readonly viewSchema: ZodType<View>;
   /** The ONLY way game state leaves the room — sockets, logs and errors included. */
   view(state: State, viewer: Viewer): View;
   result(state: State): MatchResult | null;

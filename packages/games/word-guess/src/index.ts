@@ -16,4 +16,9 @@ export {
   type WordGuessPhase,
   type WordLists,
 } from "./rules.ts";
-export type { WordGuessSeatView, WordGuessSpectatorView, WordGuessView } from "./view.ts";
+export {
+  wordGuessViewSchema,
+  type WordGuessSeatView,
+  type WordGuessSpectatorView,
+  type WordGuessView,
+} from "./view.ts";

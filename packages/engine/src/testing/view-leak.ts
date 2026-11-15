@@ -1,3 +1,4 @@
+import type { ZodType } from "zod";
 import type { GameModule, Json, Viewer } from "../module.ts";
 import { createRng, SEED_BYTES, type Rng } from "../rng.ts";
 import { step } from "../step.ts";
@@ -81,7 +82,10 @@ function checkViewer<Config, State, Action, View extends Json>(
 ): boolean {
   const label = viewer.kind === "seat" ? `seat ${String(viewer.seat)}` : "spectator";
   const stateJson = canonicalJson(state, `${where}: state`);
-  const expected = canonicalJson(module.view(state, viewer), `${where}: view for ${label}`);
+  const expected = canonicalJson(
+    checkedView(module, module.view(state, viewer), `${where}: view for ${label}`),
+    `${where}: view for ${label}`,
+  );
   let changed = false;
   for (let i = 0; i < perturbations; i++) {
     const perturbed = module.perturbHidden(state, viewer, rng);
@@ -91,7 +95,10 @@ function checkViewer<Config, State, Action, View extends Json>(
     // Nothing hidden from this viewer (e.g. after the end-of-game reveal): same state, same view.
     if (canonicalJson(perturbed, `${where}: perturbed state`) === stateJson) continue;
     changed = true;
-    const actual = canonicalJson(module.view(perturbed, viewer), `${where}: view for ${label}`);
+    const actual = canonicalJson(
+      checkedView(module, module.view(perturbed, viewer), `${where}: view for ${label}`),
+      `${where}: view for ${label}`,
+    );
     if (actual !== expected) {
       throw new LeakError(`${where}: the view for ${label} changes with data it must not see`);
     }
@@ -144,4 +151,22 @@ export function canonicalJson(value: unknown, where: string): string {
     return `{${entries.join(",")}}`;
   }
   throw new LeakError(`${where}: contains a value that is not plain JSON (${typeof value})`);
+}
+
+/** A view must match the module's `viewSchema` exactly; an unknown field may be a leak. */
+function checkedView<View extends Json>(
+  module: { readonly viewSchema: ZodType<View> },
+  view: View,
+  where: string,
+): View {
+  const parsed = module.viewSchema.safeParse(view);
+  if (!parsed.success) {
+    const first = parsed.error.issues[0];
+    const at =
+      first === undefined
+        ? ""
+        : ` at ${first.path.map(String).join(".") || "(root)"}: ${first.message}`;
+    throw new LeakError(`${where} doesn't match viewSchema${at}`);
+  }
+  return view;
 }
